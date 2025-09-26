@@ -6,6 +6,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import { AuthProvider } from './contexts/AuthContext';
 import Dashboard from './pages/Dashboard';
 import CallsPage from './pages/CallsPage';
 import CallDetailPage from './pages/CallDetailPage';
@@ -30,8 +31,9 @@ const SettingsPage: React.FC = () => (
 
 function App() {
   return (
-    <Router>
-      <Layout>
+    <AuthProvider>
+      <Router>
+        <Layout>
         <Routes>
           {/* Main Dashboard */}
           <Route path="/" element={<Dashboard />} />
@@ -63,8 +65,9 @@ function App() {
             </div>
           } />
         </Routes>
-      </Layout>
-    </Router>
+        </Layout>
+      </Router>
+    </AuthProvider>
   );
 }
 

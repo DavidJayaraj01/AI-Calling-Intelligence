@@ -3,7 +3,7 @@
  * Main dashboard showing key metrics, recent activity, and overview charts
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, Phone, AlertTriangle, CheckCircle, Users, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { SentimentLineChart, CategoryPieChart, StatusBarChart } from '../components/ui/Charts';
@@ -17,10 +17,43 @@ import {
   getRecentActivity 
 } from '../data/mockData';
 import { Link } from 'react-router-dom';
+import { apiService } from '../services/api';
+import type { DashboardMetrics } from '../types';
 
 const Dashboard: React.FC = () => {
-  const metrics = mockDashboardMetrics;
+  const [metrics, setMetrics] = useState<DashboardMetrics>(mockDashboardMetrics);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const recentActivity = getRecentActivity();
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Always try to fetch from API first (dashboard endpoint is public)
+        try {
+          const dashboardData = await apiService.getDashboardMetrics();
+          setMetrics(dashboardData);
+          console.log('✅ Dashboard data loaded from API:', dashboardData);
+        } catch (apiError) {
+          console.warn('API call failed, using mock data:', apiError);
+          // Fallback to mock data if API fails
+          setMetrics(mockDashboardMetrics);
+        }
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+        setError('Failed to load dashboard data');
+        // Final fallback to mock data on error
+        setMetrics(mockDashboardMetrics);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   // Stats cards data
   const stats = [
@@ -62,6 +95,36 @@ const Dashboard: React.FC = () => {
       minute: '2-digit',
     }).format(date);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-secondary-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-error-500 mx-auto mb-4" />
+          <p className="text-error-600 mb-2">Error loading dashboard</p>
+          <p className="text-secondary-500 text-sm">{error}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
