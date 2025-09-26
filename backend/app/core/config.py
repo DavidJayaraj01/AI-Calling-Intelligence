@@ -17,12 +17,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AI Call Intelligence API"
     VERSION: str = "1.0.0"
     
-    # Database Configuration
-    DATABASE_URL: str = "sqlite:///./ai_call_intelligence.db"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "password123"
-    POSTGRES_DB: str = "ai_call_intelligence"
-    POSTGRES_HOST: str = "localhost"
+    # Database Configuration - PostgreSQL
+    DATABASE_URL: str = "postgresql://klassy:yWQe2PJ6E0SWeN7mBYrz5OsYwMdq2wWB@dpg-d3betrjipnbc73fqjag0-a.singapore-postgres.render.com/daviddb_e0aw"
+    POSTGRES_USER: str = "klassy"
+    POSTGRES_PASSWORD: str = "yWQe2PJ6E0SWeN7mBYrz5OsYwMdq2wWB"
+    POSTGRES_DB: str = "daviddb_e0aw"
+    POSTGRES_HOST: str = "dpg-d3betrjipnbc73fqjag0-a.singapore-postgres.render.com"
     POSTGRES_PORT: int = 5432
     
     # Redis Configuration
@@ -34,11 +34,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # AI/ML Model Configuration
-    # Note: Using local models - no external API keys needed
+    OPENAI_API_KEY: str = "your-openai-api-key-here"
+    HUGGINGFACE_API_TOKEN: str = "your-huggingface-token-here"
     
-    # Model Names - Using local models
-    ROBERTA_MODEL: str = "/home/klassy/Desktop/roberta_finetuned"
-    SENTIMENT_MODEL: str = "/home/klassy/Desktop/roberta_finetuned"
+    # Model Names
+    ROBERTA_MODEL: str = "j-hartmann/emotion-english-distilroberta-base"
+    SENTIMENT_MODEL: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+    LLAMA_MODEL: str = "meta-llama/Llama-2-8b-chat-hf"
+    
+    # Ollama Configuration
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3"
     
@@ -53,9 +57,8 @@ class Settings(BaseSettings):
     ]
     
     # Speech-to-Text Configuration
-    # Note: STT functionality can be implemented with local models if needed
-    STT_API_URL: str = ""
-    STT_MODEL: str = ""
+    STT_API_URL: str = "https://api.openai.com/v1/audio/transcriptions"
+    STT_MODEL: str = "whisper-1"
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"

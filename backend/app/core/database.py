@@ -4,14 +4,13 @@ Database configuration and connection setup
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from app.core.config import settings
 
-# Create database engine
+# Create database engine for PostgreSQL
 engine = create_engine(
     settings.DATABASE_URL,
-    poolclass=StaticPool,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
+    pool_pre_ping=True,
+    pool_recycle=300,
     echo=settings.DEBUG
 )
 
