@@ -1,0 +1,151 @@
+id,conversation,pain_point
+1,"order confirmation issues has been happening repeatedly, this is unacceptable.",Order confirmation issues
+2,"pricing inconsistency has been happening repeatedly, this is unacceptable.",Pricing inconsistency
+3,Your team’s delivery delays is making it difficult to continue business.,Delivery delays
+4,Your team’s poor communication is making it difficult to continue business.,Poor communication
+5,The poor communication is causing revenue loss on our side.,Poor communication
+6,"If rigid payment terms continues, we might switch to another vendor.",Rigid payment terms
+7,Your team’s billing errors is making it difficult to continue business.,Billing errors
+8,"There is no improvement in lack of support, despite several reminders.",Lack of support
+9,"order confirmation issues must be fixed, otherwise we will lose trust in the partnership.",Order confirmation issues
+10,"The lack of support is affecting our operations, please resolve it.",Lack of support
+11,"Distributors are reporting outdated product catalog, we need urgent action.",Outdated product catalog
+12,"order confirmation issues has been happening repeatedly, this is unacceptable.",Order confirmation issues
+13,"If pricing inconsistency continues, we might switch to another vendor.",Pricing inconsistency
+14,Your team’s pricing inconsistency is making it difficult to continue business.,Pricing inconsistency
+15,The order confirmation issues is causing revenue loss on our side.,Order confirmation issues
+16,"Distributors are reporting rigid payment terms, we need urgent action.",Rigid payment terms
+17,"lack of support must be fixed, otherwise we will lose trust in the partnership.",Lack of support
+18,"order confirmation issues must be fixed, otherwise we will lose trust in the partnership.",Order confirmation issues
+19,"high moq has been happening repeatedly, this is unacceptable.",High MOQ
+20,Your team’s lack of support is making it difficult to continue business.,Lack of support
+21,We can’t proceed further because of billing errors.,Billing errors
+22,"There is no improvement in order confirmation issues, despite several reminders.",Order confirmation issues
+23,"order confirmation issues has been happening repeatedly, this is unacceptable.",Order confirmation issues
+24,"If lack of support continues, we might switch to another vendor.",Lack of support
+25,"high moq must be fixed, otherwise we will lose trust in the partnership.",High MOQ
+26,"rigid payment terms must be fixed, otherwise we will lose trust in the partnership.",Rigid payment terms
+27,"If lack of support continues, we might switch to another vendor.",Lack of support
+28,"delivery delays has been happening repeatedly, this is unacceptable.",Delivery delays
+29,"outdated product catalog must be fixed, otherwise we will lose trust in the partnership.",Outdated product catalog
+30,"The order confirmation issues is affecting our operations, please resolve it.",Order confirmation issues
+31,"lack of support has been happening repeatedly, this is unacceptable.",Lack of support
+32,We can’t proceed further because of outdated product catalog.,Outdated product catalog
+33,Your team’s pricing inconsistency is making it difficult to continue business.,Pricing inconsistency
+34,"billing errors must be fixed, otherwise we will lose trust in the partnership.",Billing errors
+35,"The delivery delays is affecting our operations, please resolve it.",Delivery delays
+36,Your team’s outdated product catalog is making it difficult to continue business.,Outdated product catalog
+37,Your team’s rigid payment terms is making it difficult to continue business.,Rigid payment terms
+38,"If order confirmation issues continues, we might switch to another vendor.",Order confirmation issues
+39,Your team’s delivery delays is making it difficult to continue business.,Delivery delays
+40,"There is no improvement in pricing inconsistency, despite several reminders.",Pricing inconsistency
+41,"delivery delays has been happening repeatedly, this is unacceptable.",Delivery delays
+42,We can’t proceed further because of outdated product catalog.,Outdated product catalog
+43,"product quality has been happening repeatedly, this is unacceptable.",Product quality
+44,"If order confirmation issues continues, we might switch to another vendor.",Order confirmation issues
+45,We can’t proceed further because of billing errors.,Billing errors
+46,"We are facing billing errors, customers are complaining.",Billing errors
+47,"Distributors are reporting pricing inconsistency, we need urgent action.",Pricing inconsistency
+48,"Distributors are reporting poor communication, we need urgent action.",Poor communication
+49,Your team’s order confirmation issues is making it difficult to continue business.,Order confirmation issues
+50,"If order confirmation issues continues, we might switch to another vendor.",Order confirmation issues
+51,"Distributors are reporting poor communication, we need urgent action.",Poor communication
+52,"There is no improvement in delivery delays, despite several reminders.",Delivery delays
+53,Your team’s rigid payment terms is making it difficult to continue business.,Rigid payment terms
+54,"We are facing poor communication, customers are complaining.",Poor communication
+55,"Distributors are reporting poor communication, we need urgent action.",Poor communication
+56,"poor communication must be fixed, otherwise we will lose trust in the partnership.",Poor communication
+57,We can’t proceed further because of order confirmation issues.,Order confirmation issues
+58,"delivery delays must be fixed, otherwise we will lose trust in the partnership.",Delivery delays
+59,"We are facing billing errors, customers are complaining.",Billing errors
+60,Your team’s lack of support is making it difficult to continue business.,Lack of support
+61,The rigid payment terms is causing revenue loss on our side.,Rigid payment terms
+62,"We are facing poor communication, customers are complaining.",Poor communication
+63,"Distributors are reporting high moq, we need urgent action.",High MOQ
+64,"The poor communication is affecting our operations, please resolve it.",Poor communication
+65,"lack of support must be fixed, otherwise we will lose trust in the partnership.",Lack of support
+66,We can’t proceed further because of order confirmation issues.,Order confirmation issues
+67,Your team’s rigid payment terms is making it difficult to continue business.,Rigid payment terms
+68,"pricing inconsistency must be fixed, otherwise we will lose trust in the partnership.",Pricing inconsistency
+69,"poor communication must be fixed, otherwise we will lose trust in the partnership.",Poor communication
+70,Your team’s high moq is making it difficult to continue business.,High MOQ
+71,"We are facing order confirmation issues, customers are complaining.",Order confirmation issues
+72,"delivery delays must be fixed, otherwise we will lose trust in the partnership.",Delivery delays
+73,Your team’s product quality is making it difficult to continue business.,Product quality
+74,"Distributors are reporting delivery delays, we need urgent action.",Delivery delays
+75,We can’t proceed further because of lack of support.,Lack of support
+76,"rigid payment terms must be fixed, otherwise we will lose trust in the partnership.",Rigid payment terms
+77,"If rigid payment terms continues, we might switch to another vendor.",Rigid payment terms
+78,"We are facing pricing inconsistency, customers are complaining.",Pricing inconsistency
+79,"There is no improvement in high moq, despite several reminders.",High MOQ
+80,"Distributors are reporting outdated product catalog, we need urgent action.",Outdated product catalog
+81,Your team’s pricing inconsistency is making it difficult to continue business.,Pricing inconsistency
+82,"If order confirmation issues continues, we might switch to another vendor.",Order confirmation issues
+83,"product quality must be fixed, otherwise we will lose trust in the partnership.",Product quality
+84,"order confirmation issues has been happening repeatedly, this is unacceptable.",Order confirmation issues
+85,We can’t proceed further because of delivery delays.,Delivery delays
+86,Your team’s poor communication is making it difficult to continue business.,Poor communication
+87,"The pricing inconsistency is affecting our operations, please resolve it.",Pricing inconsistency
+88,The billing errors is causing revenue loss on our side.,Billing errors
+89,"We are facing product quality, customers are complaining.",Product quality
+90,"Distributors are reporting delivery delays, we need urgent action.",Delivery delays
+91,"We are facing high moq, customers are complaining.",High MOQ
+92,"order confirmation issues has been happening repeatedly, this is unacceptable.",Order confirmation issues
+93,"Distributors are reporting order confirmation issues, we need urgent action.",Order confirmation issues
+94,"If high moq continues, we might switch to another vendor.",High MOQ
+95,"lack of support must be fixed, otherwise we will lose trust in the partnership.",Lack of support
+96,"delivery delays must be fixed, otherwise we will lose trust in the partnership.",Delivery delays
+97,"outdated product catalog must be fixed, otherwise we will lose trust in the partnership.",Outdated product catalog
+98,"Distributors are reporting billing errors, we need urgent action.",Billing errors
+99,"We are facing billing errors, customers are complaining.",Billing errors
+100,Your team’s order confirmation issues is making it difficult to continue business.,Order confirmation issues
+101,Your team’s high moq is making it difficult to continue business.,High MOQ
+102,"lack of support must be fixed, otherwise we will lose trust in the partnership.",Lack of support
+103,"rigid payment terms must be fixed, otherwise we will lose trust in the partnership.",Rigid payment terms
+104,"Distributors are reporting lack of support, we need urgent action.",Lack of support
+105,"order confirmation issues has been happening repeatedly, this is unacceptable.",Order confirmation issues
+106,"Distributors are reporting high moq, we need urgent action.",High MOQ
+107,"pricing inconsistency has been happening repeatedly, this is unacceptable.",Pricing inconsistency
+108,We can’t proceed further because of high moq.,High MOQ
+109,Your team’s high moq is making it difficult to continue business.,High MOQ
+110,"Distributors are reporting order confirmation issues, we need urgent action.",Order confirmation issues
+111,Your team’s rigid payment terms is making it difficult to continue business.,Rigid payment terms
+112,"If high moq continues, we might switch to another vendor.",High MOQ
+113,"There is no improvement in order confirmation issues, despite several reminders.",Order confirmation issues
+114,"Distributors are reporting order confirmation issues, we need urgent action.",Order confirmation issues
+115,"The rigid payment terms is affecting our operations, please resolve it.",Rigid payment terms
+116,"There is no improvement in delivery delays, despite several reminders.",Delivery delays
+117,The order confirmation issues is causing revenue loss on our side.,Order confirmation issues
+118,We can’t proceed further because of order confirmation issues.,Order confirmation issues
+119,"There is no improvement in delivery delays, despite several reminders.",Delivery delays
+120,"delivery delays must be fixed, otherwise we will lose trust in the partnership.",Delivery delays
+121,"There is no improvement in order confirmation issues, despite several reminders.",Order confirmation issues
+122,The order confirmation issues is causing revenue loss on our side.,Order confirmation issues
+123,Your team’s product quality is making it difficult to continue business.,Product quality
+124,"We are facing poor communication, customers are complaining.",Poor communication
+125,"The high moq is affecting our operations, please resolve it.",High MOQ
+126,"Distributors are reporting outdated product catalog, we need urgent action.",Outdated product catalog
+127,"order confirmation issues must be fixed, otherwise we will lose trust in the partnership.",Order confirmation issues
+128,The high moq is causing revenue loss on our side.,High MOQ
+129,"The billing errors is affecting our operations, please resolve it.",Billing errors
+130,We can’t proceed further because of delivery delays.,Delivery delays
+131,Your team’s rigid payment terms is making it difficult to continue business.,Rigid payment terms
+132,Your team’s poor communication is making it difficult to continue business.,Poor communication
+133,"We are facing pricing inconsistency, customers are complaining.",Pricing inconsistency
+134,We can’t proceed further because of rigid payment terms.,Rigid payment terms
+135,"The order confirmation issues is affecting our operations, please resolve it.",Order confirmation issues
+136,"lack of support has been happening repeatedly, this is unacceptable.",Lack of support
+137,The rigid payment terms is causing revenue loss on our side.,Rigid payment terms
+138,The poor communication is causing revenue loss on our side.,Poor communication
+139,We can’t proceed further because of delivery delays.,Delivery delays
+140,"There is no improvement in poor communication, despite several reminders.",Poor communication
+141,"Distributors are reporting high moq, we need urgent action.",High MOQ
+142,We can’t proceed further because of delivery delays.,Delivery delays
+143,"We are facing billing errors, customers are complaining.",Billing errors
+144,"The high moq is affecting our operations, please resolve it.",High MOQ
+145,"delivery delays must be fixed, otherwise we will lose trust in the partnership.",Delivery delays
+146,"order confirmation issues must be fixed, otherwise we will lose trust in the partnership.",Order confirmation issues
+147,"If rigid payment terms continues, we might switch to another vendor.",Rigid payment terms
+148,We can’t proceed further because of pricing inconsistency.,Pricing inconsistency
+149,"The lack of support is affecting our operations, please resolve it.",Lack of support
+150,"The billing errors is affecting our operations, please resolve it.",Billing errors
