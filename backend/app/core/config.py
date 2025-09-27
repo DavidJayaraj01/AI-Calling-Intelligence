@@ -2,7 +2,7 @@
 Core configuration for the AI Call Intelligence Backend
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Union
 import os
 from pathlib import Path
 
@@ -39,18 +39,30 @@ class Settings(BaseSettings):
     ALLOWED_AUDIO_EXTENSIONS: List[str] = [".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"]
     UPLOAD_DIR: str = str(backend_dir / "uploads")
     
-    # CORS Configuration
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173", 
-        "http://localhost:5174",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "https://conversa-ai.onrender.com",
-        "https://ai-calling-intelligence-frontend.onrender.com",
-        "*"  # Allow all origins for now - should be more restrictive in production
-    ]
+    # CORS Configuration - Using property to avoid pydantic parsing issues
+    @property
+    def ALLOWED_ORIGINS(self) -> List[str]:
+        # Check if environment variable is set
+        env_origins = os.getenv("ALLOWED_ORIGINS")
+        if env_origins:
+            if env_origins == "*":
+                return ["*"]
+            else:
+                # Split by comma and strip whitespace
+                return [origin.strip() for origin in env_origins.split(",")]
+        
+        # Default origins for development and production
+        return [
+            "http://localhost:3000",
+            "http://localhost:5173", 
+            "http://localhost:5174",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "https://conversa-ai.onrender.com",
+            "https://ai-calling-intelligence-frontend.onrender.com",
+            "*"  # Allow all origins for now - should be more restrictive in production
+        ]
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
