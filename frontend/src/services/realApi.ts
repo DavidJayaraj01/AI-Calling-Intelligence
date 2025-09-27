@@ -4,7 +4,7 @@
  * NO MOCK DATA - Everything comes from actual call transcriptions and analysis
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-calling-intelligence.onrender.com';
 
 export interface ApiResponse<T = any> {
   success: boolean;
