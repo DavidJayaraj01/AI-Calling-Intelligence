@@ -60,9 +60,10 @@ AI-Calling-Intelligence/
    - **Name**: `ai-call-intelligence-backend`
    - **Environment**: `Python 3`
    - **Python Version**: `3.11` (IMPORTANT: Select 3.11, not 3.13)
-   - **Build Command**: `python3.11 -m pip install --upgrade pip && python3.11 -m pip install setuptools==68.2.2 wheel==0.41.2 && python3.11 -m pip install -r backend/requirements.txt`
-   - **Start Command**: `cd backend && python3.11 main.py`
+   - **Build Command**: `pip install --upgrade pip && pip install -r backend/requirements.txt`
+   - **Start Command**: `cd backend && python main.py`
    - **Plan**: Starter (Free tier)
+   - **Root Directory**: Leave empty (uses repo root)
 4. **Environment Variables**:
    ```
    OPENAI_API_KEY=sk-your-openai-api-key-here
@@ -136,8 +137,12 @@ The `render.yaml` file defines:
 ### Common Issues
 
 1. **Build Failures**:
-   - **Python 3.13 setuptools error**: Fixed by adding `setuptools>=68.0.0` and `wheel>=0.40.0` to requirements.txt
-   - **Python version**: Use Python 3.11 (specified in runtime.txt and render.yaml)
+   - **Python 3.13 setuptools error**: 
+     - **Solution 1**: Manually select Python 3.11 in Render dashboard (not 3.13)
+     - **Solution 2**: Use simplified requirements.txt with flexible version ranges
+     - **Solution 3**: Delete and recreate the service if Python version is stuck
+   - **Python version**: Use Python 3.11 (specified in runtime.txt and .python-version)
+   - **If still failing**: Try deploying without render.yaml, use manual configuration
    - Check `requirements.txt` for Python dependencies
    - Verify `package.json` for Node.js dependencies
    - Check build logs in Render dashboard
