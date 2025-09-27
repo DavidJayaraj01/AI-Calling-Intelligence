@@ -4,10 +4,7 @@ services:
     name: ai-call-intelligence-backend
     env: python
     plan: starter
-    buildCommand: |
-      cd backend
-      python -m pip install --upgrade pip
-      pip install -r requirements.txt
+    buildCommand: cd backend && python -m pip install --upgrade pip && pip install -r requirements.txt
     startCommand: cd backend && python main.py
     envVars:
       - key: OPENAI_API_KEY
