@@ -16,7 +16,7 @@ aiofiles>=23.0.0
 
 # Environment and Configuration
 python-dotenv>=1.0.0
-pydantic>=2.0.0
+pydantic[email]>=2.0.0
 pydantic-settings>=2.0.0
 
 # Logging
