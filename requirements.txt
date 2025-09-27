@@ -1,0 +1,4 @@
+# AI Call Intelligence Backend Dependencies
+# This file references the backend requirements for Render deployment
+
+-r backend/requirements.txt
