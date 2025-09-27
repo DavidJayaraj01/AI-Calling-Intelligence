@@ -18,33 +18,26 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     
     # Database Configuration - PostgreSQL
-    DATABASE_URL: str = "postgresql://klassy:yWQe2PJ6E0SWeN7mBYrz5OsYwMdq2wWB@dpg-d3betrjipnbc73fqjag0-a.singapore-postgres.render.com/daviddb_e0aw"
-    POSTGRES_USER: str = "klassy"
-    POSTGRES_PASSWORD: str = "yWQe2PJ6E0SWeN7mBYrz5OsYwMdq2wWB"
-    POSTGRES_DB: str = "daviddb_e0aw"
-    POSTGRES_HOST: str = "dpg-d3betrjipnbc73fqjag0-a.singapore-postgres.render.com"
+    DATABASE_URL: str = "postgresql://db:t5KGZJ3OZUfpUtUaUgADVez06AWKcPTn@dpg-d3bjmni4d50c73bs649g-a.oregon-postgres.render.com/jerwindb"
+    POSTGRES_USER: str = "db"
+    POSTGRES_PASSWORD: str = "t5KGZJ3OZUfpUtUaUgADVez06AWKcPTn"
+    POSTGRES_DB: str = "jerwindb"
+    POSTGRES_HOST: str = "dpg-d3bjmni4d50c73bs649g-a.oregon-postgres.render.com"
     POSTGRES_PORT: int = 5432
     
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379"
     
-    # JWT Configuration
-    SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # OpenAI Configuration
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-Dk6SKlvqjW40_sXl7recBbLqqY0B5vJlaFRxNm8Tr2T3BlbkFJkTBkcDKR-2HO7_LRwIdtK8CWL8QBjQhSSB-KIJPOEA")
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_WHISPER_MODEL: str = "whisper-1"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     
-    # AI/ML Model Configuration
-    OPENAI_API_KEY: str = "your-openai-api-key-here"
-    HUGGINGFACE_API_TOKEN: str = "your-huggingface-token-here"
-    
-    # Model Names
-    ROBERTA_MODEL: str = "j-hartmann/emotion-english-distilroberta-base"
-    SENTIMENT_MODEL: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-    LLAMA_MODEL: str = "meta-llama/Llama-2-8b-chat-hf"
-    
-    # Ollama Configuration
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "llama3"
+    # File Upload Configuration
+    MAX_UPLOAD_SIZE: int = 25 * 1024 * 1024  # 25MB for audio files
+    ALLOWED_AUDIO_EXTENSIONS: List[str] = [".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"]
+    UPLOAD_DIR: str = str(backend_dir / "uploads")
     
     # CORS Configuration
     ALLOWED_ORIGINS: List[str] = [
@@ -55,10 +48,6 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174"
     ]
-    
-    # Speech-to-Text Configuration
-    STT_API_URL: str = "https://api.openai.com/v1/audio/transcriptions"
-    STT_MODEL: str = "whisper-1"
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"

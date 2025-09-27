@@ -12,7 +12,9 @@ import sys
 
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, calls, action_items
+from app.api import auth, audio  # Remove old imports
+from app.api import calls_real  # New real data endpoints
+from app.api import action_items_real  # Real action items from AI
 
 # Configure logging
 logger.remove()
@@ -42,13 +44,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error creating database tables: {e}")
     
-    # Initialize AI models (in background)
+    # Initialize OpenAI-based AI services
     try:
         from app.services.pain_point_service import pain_point_extractor
         from app.services.solution_service import solution_matcher
         from app.services.action_item_service import action_item_generator
         from app.services.sentiment_service import sentiment_analyzer
-        logger.info("AI services initialized")
+        logger.info("OpenAI-based AI services initialized successfully")
     except Exception as e:
         logger.error(f"Error initializing AI services: {e}")
     
@@ -113,8 +115,20 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
-app.include_router(action_items.router, prefix="/api/action-items", tags=["Action Items"])
+app.include_router(calls_real.router, prefix="/api/calls", tags=["Calls - Real Data"])  # Use real data endpoints
+app.include_router(action_items_real.router, prefix="/api/action-items", tags=["Action Items - AI Generated"])  # Real AI action items
+app.include_router(audio.router, prefix="/api/audio", tags=["Audio Processing - OpenAI"])
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint to verify API is working"""
+    return {
+        "success": True,
+        "message": "AI Call Intelligence API is running",
+        "version": settings.VERSION,
+        "openai_configured": bool(settings.OPENAI_API_KEY),
+        "data_source": "real_openai_analysis"
+    }
 
 # Health check endpoint
 @app.get("/health")

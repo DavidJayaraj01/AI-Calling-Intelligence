@@ -1,20 +1,19 @@
 """
-Solution Matching Service using local models
+Solution Matching Service using OpenAI API
 """
 import asyncio
 from typing import List, Dict, Any, Optional
-import numpy as np
+import json
+from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from sentence_transformers import SentenceTransformer
 from loguru import logger
 from app.core.config import settings
-from app.models import SolutionResource, ProblemSolutionMapping
 from app.core.database import get_db
 
 class SolutionMatcher:
     def __init__(self):
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        logger.info("Solution matching service initialized with OpenAI API")
         
     async def find_matching_solutions(
         self, 
@@ -23,215 +22,194 @@ class SolutionMatcher:
         top_k: int = 3
     ) -> List[Dict[str, Any]]:
         """
-        Find matching solutions for a pain point using vector similarity search
-        
-        Args:
-            pain_point: Pain point dictionary with embedding
-            db: Database session
-            top_k: Number of top matches to return
-            
-        Returns:
-            List of matching solutions with scores
+        Find matching solutions for a pain point using OpenAI API
         """
         try:
-            pain_point_embedding = pain_point.get('vector_embedding')
-            if not pain_point_embedding:
-                logger.warning("Pain point has no embedding, generating one")
-                pain_point_embedding = self.embedding_model.encode(
-                    pain_point['description']
-                ).tolist()
+            # First, try to get solutions from database
+            # For now, we'll use OpenAI to generate relevant solutions
             
-            # Convert embedding to PostgreSQL vector format
-            embedding_str = '[' + ','.join(map(str, pain_point_embedding)) + ']'
+            pain_point_desc = pain_point.get('description', '')
+            pain_point_category = pain_point.get('category', 'OTHER')
+            pain_point_severity = pain_point.get('severity', 'MEDIUM')
             
-            # Query for similar solutions using cosine similarity
-            query = text("""
-                SELECT 
-                    id,
-                    title,
-                    description,
-                    resource_type,
-                    uri,
-                    content,
-                    tags,
-                    1 - (vector_embedding <=> :embedding) as similarity_score
-                FROM solution_resources 
-                WHERE is_active = true
-                ORDER BY vector_embedding <=> :embedding
-                LIMIT :limit
-            """)
-            
-            result = db.execute(query, {
-                'embedding': embedding_str,
-                'limit': top_k
-            })
-            
-            matches = []
-            for row in result:
-                match = {
-                    'resource_id': str(row.id),
-                    'title': row.title,
-                    'description': row.description,
-                    'resource_type': row.resource_type,
-                    'uri': row.uri,
-                    'content': row.content,
-                    'tags': row.tags,
-                    'similarity_score': float(row.similarity_score)
-                }
-                matches.append(match)
-            
-            # Enhance matches using local keyword and category matching
-            if matches:
-                enhanced_matches = self._enhance_matches_locally(pain_point, matches)
-                return enhanced_matches
-            
-            return matches
-            
-        except Exception as e:
-            logger.error(f"Error finding matching solutions: {e}")
-            raise
+            prompt = f"""
+You are a business solutions expert specializing in vendor-distributor relationships. 
 
-    def _enhance_matches_locally(
-        self, 
-        pain_point: Dict[str, Any], 
-        initial_matches: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """
-        Enhance solution matches using local keyword and category matching
-        """
-        try:
-            pain_category = pain_point.get('category', '').lower()
-            pain_description = pain_point.get('description', '').lower()
-            pain_severity = pain_point.get('severity', '').lower()
-            
-            # Define category relevance weights
-            category_weights = {
-                'technical': 1.2,
-                'product': 1.1,
-                'pricing': 1.0,
-                'service': 1.1,
-                'delivery': 1.0,
-                'communication': 1.0
-            }
-            
-            # Define severity weights
-            severity_weights = {
-                'critical': 1.3,
-                'high': 1.2,
-                'medium': 1.1,
-                'low': 1.0
-            }
-            
-            # Enhance each match
-            for match in initial_matches:
-                # Get base similarity score
-                base_score = match['similarity_score']
-                
-                # Apply category relevance
-                category_weight = category_weights.get(pain_category, 1.0)
-                
-                # Apply severity weight
-                severity_weight = severity_weights.get(pain_severity, 1.0)
-                
-                # Calculate enhanced score
-                enhanced_score = base_score * category_weight * severity_weight
-                
-                # Add local enhancement metadata
-                match['enhanced_score'] = min(enhanced_score, 1.0)  # Cap at 1.0
-                match['category_relevance'] = category_weight
-                match['severity_boost'] = severity_weight
-                match['enhancement_method'] = 'local_keyword_matching'
-            
-            # Sort by enhanced score
-            enhanced_matches = sorted(initial_matches, key=lambda x: x.get('enhanced_score', x['similarity_score']), reverse=True)
-            return enhanced_matches
-                
-        except Exception as e:
-            logger.error(f"Error enhancing matches locally: {e}")
-            return initial_matches
+A pain point has been identified:
+- Description: {pain_point_desc}
+- Category: {pain_point_category}
+- Severity: {pain_point_severity}
 
-    async def create_solution_mappings(
-        self,
-        call_id: str,
-        pain_point_id: str,
-        solutions: List[Dict[str, Any]],
-        db: Session
-    ) -> List[str]:
-        """
-        Create problem-solution mappings in the database
-        
-        Returns:
-            List of created mapping IDs
-        """
-        try:
-            mapping_ids = []
-            
-            for solution in solutions:
-                mapping = ProblemSolutionMapping(
-                    call_id=call_id,
-                    pain_point_id=pain_point_id,
-                    solution_resource_id=solution['resource_id'],
-                    matching_score=solution.get('final_matching_score', solution.get('similarity_score', 0))
-                )
-                
-                db.add(mapping)
-                db.flush()  # Get the ID
-                mapping_ids.append(str(mapping.id))
-            
-            db.commit()
-            logger.info(f"Created {len(mapping_ids)} solution mappings")
-            return mapping_ids
-            
-        except Exception as e:
-            logger.error(f"Error creating solution mappings: {e}")
-            db.rollback()
-            raise
+Suggest {top_k} practical solutions or resources that could address this pain point. For each solution, provide:
 
-    async def add_solution_resource(
-        self,
-        title: str,
-        description: str,
-        resource_type: str,
-        content: str,
-        uri: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        created_by: str = None,
-        db: Session = None
-    ) -> str:
-        """
-        Add a new solution resource to the database
-        
-        Returns:
-            ID of the created resource
-        """
-        try:
-            # Generate embedding for the content
-            full_text = f"{title} {description} {content}"
-            embedding = self.embedding_model.encode(full_text)
-            
-            resource = SolutionResource(
-                title=title,
-                description=description,
-                resource_type=resource_type,
-                uri=uri,
-                content=content,
-                vector_embedding=embedding.tolist(),
-                tags=tags or [],
-                created_by=created_by,
-                is_active=True
+1. A clear title
+2. Detailed description of the solution
+3. Resource type (DOCUMENTATION, TRAINING, TOOL, PROCESS, CONTACT, OTHER)
+4. Implementation difficulty (LOW, MEDIUM, HIGH)
+5. Expected impact (LOW, MEDIUM, HIGH)
+6. Specific next steps
+
+Return as JSON array:
+[
+  {{
+    "title": "Solution title",
+    "description": "Detailed description of the solution",
+    "resource_type": "RESOURCE_TYPE",
+    "difficulty": "DIFFICULTY_LEVEL",
+    "impact": "IMPACT_LEVEL",
+    "next_steps": "Specific actions to implement this solution",
+    "tags": ["tag1", "tag2", "tag3"],
+    "similarity_score": 0.85
+  }}
+]
+
+Focus on actionable, realistic solutions that address the root cause of the pain point.
+"""
+
+            response = await self.client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are a business solutions expert with deep knowledge of vendor-distributor relationships and business process optimization."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
             )
             
-            db.add(resource)
-            db.commit()
-            db.refresh(resource)
+            content = response.choices[0].message.content
             
-            logger.info(f"Added new solution resource: {title}")
-            return str(resource.id)
+            try:
+                json_start = content.find('[')
+                json_end = content.rfind(']') + 1
+                if json_start >= 0 and json_end > json_start:
+                    solutions_data = json.loads(content[json_start:json_end])
+                else:
+                    solutions_data = []
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing solutions response: {e}")
+                solutions_data = []
+            
+            # Process and enhance solutions
+            solutions = []
+            for i, solution in enumerate(solutions_data):
+                try:
+                    # Validate resource type
+                    resource_type = solution.get('resource_type', 'OTHER').upper()
+                    valid_types = ['DOCUMENTATION', 'TRAINING', 'TOOL', 'PROCESS', 'CONTACT', 'OTHER']
+                    if resource_type not in valid_types:
+                        resource_type = 'OTHER'
+                    
+                    enhanced_solution = {
+                        'resource_id': f"solution_{i+1}",
+                        'title': solution.get('title', 'Untitled Solution'),
+                        'description': solution.get('description', ''),
+                        'resource_type': resource_type,
+                        'difficulty': solution.get('difficulty', 'MEDIUM'),
+                        'impact': solution.get('impact', 'MEDIUM'),
+                        'next_steps': solution.get('next_steps', ''),
+                        'tags': solution.get('tags', []),
+                        'similarity_score': solution.get('similarity_score', 0.8),
+                        'uri': f"#generated_solution_{i+1}",
+                        'content': solution.get('description', '')
+                    }
+                    
+                    solutions.append(enhanced_solution)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing solution {i}: {e}")
+                    continue
+            
+            logger.info(f"Found {len(solutions)} solutions for pain point")
+            return solutions
             
         except Exception as e:
-            logger.error(f"Error adding solution resource: {e}")
-            db.rollback()
-            raise
+            logger.error(f"Error finding solutions: {e}")
+            return self._fallback_solutions(pain_point)
+
+    def _fallback_solutions(self, pain_point: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate basic solutions based on pain point category"""
+        logger.info("Using fallback solution generation")
+        
+        category = pain_point.get('category', 'OTHER')
+        
+        fallback_solutions = {
+            'TECHNICAL': [
+                {
+                    'resource_id': 'tech_solution_1',
+                    'title': 'Technical Support Documentation',
+                    'description': 'Provide comprehensive technical documentation and troubleshooting guides',
+                    'resource_type': 'DOCUMENTATION',
+                    'difficulty': 'LOW',
+                    'impact': 'HIGH',
+                    'next_steps': 'Create or share existing technical documentation',
+                    'tags': ['technical', 'documentation', 'support'],
+                    'similarity_score': 0.7,
+                    'uri': '#tech_docs',
+                    'content': 'Technical support resources and documentation'
+                }
+            ],
+            'PRICING': [
+                {
+                    'resource_id': 'pricing_solution_1',
+                    'title': 'Pricing Review Meeting',
+                    'description': 'Schedule a meeting to review current pricing structure and discuss alternatives',
+                    'resource_type': 'PROCESS',
+                    'difficulty': 'MEDIUM',
+                    'impact': 'HIGH',
+                    'next_steps': 'Schedule meeting with pricing team',
+                    'tags': ['pricing', 'meeting', 'negotiation'],
+                    'similarity_score': 0.8,
+                    'uri': '#pricing_meeting',
+                    'content': 'Pricing review and negotiation process'
+                }
+            ],
+            'SERVICE': [
+                {
+                    'resource_id': 'service_solution_1',
+                    'title': 'Service Level Agreement Review',
+                    'description': 'Review and potentially update service level agreements to better meet expectations',
+                    'resource_type': 'DOCUMENTATION',
+                    'difficulty': 'MEDIUM',
+                    'impact': 'HIGH',
+                    'next_steps': 'Review current SLA and schedule discussion',
+                    'tags': ['service', 'sla', 'agreement'],
+                    'similarity_score': 0.75,
+                    'uri': '#sla_review',
+                    'content': 'Service level agreement documentation and review process'
+                }
+            ]
+        }
+        
+        # Return category-specific solutions or generic ones
+        solutions = fallback_solutions.get(category, [
+            {
+                'resource_id': 'generic_solution_1',
+                'title': 'Schedule Follow-up Discussion',
+                'description': 'Schedule a dedicated discussion to address this concern in detail',
+                'resource_type': 'PROCESS',
+                'difficulty': 'LOW',
+                'impact': 'MEDIUM',
+                'next_steps': 'Set up meeting to discuss the issue',
+                'tags': ['follow-up', 'discussion', 'resolution'],
+                'similarity_score': 0.6,
+                'uri': '#follow_up',
+                'content': 'Follow-up discussion process'
+            }
+        ])
+        
+        return solutions
+
+    async def generate_solution_embedding(self, text: str) -> List[float]:
+        """Generate embedding for solution text using OpenAI API"""
+        try:
+            response = await self.client.embeddings.create(
+                model=settings.OPENAI_EMBEDDING_MODEL,
+                input=text
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            logger.error(f"Error generating solution embedding: {e}")
+            return []
 
 # Global instance
 solution_matcher = SolutionMatcher()

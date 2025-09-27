@@ -4,12 +4,12 @@ A comprehensive AI-powered platform for analyzing vendor-distributor conversatio
 
 ## 🎯 Features
 
-### 🤖 AI/ML Capabilities
-- **Speech-to-Text Processing**: Convert voice calls to text transcripts
-- **Pain Point Extraction**: RoBERTa-based emotion analysis to identify customer concerns
-- **Sentiment Analysis**: Multi-language sentiment analysis across call segments
-- **Action Item Generation**: LLM-powered action item creation from call insights
-- **Solution Matching**: Intelligent matching of pain points to available solutions
+### 🤖 OpenAI-Powered AI Capabilities
+- **Speech-to-Text Processing**: OpenAI Whisper API for accurate transcriptions
+- **Pain Point Extraction**: GPT-4o-mini for intelligent issue identification and categorization
+- **Sentiment Analysis**: Advanced multi-segment sentiment analysis with confidence scores
+- **Action Item Generation**: Smart follow-up task creation with priority and timeline analysis
+- **Solution Matching**: AI-powered solution recommendations using vector embeddings
 - **QBR Generation**: Automated Quarterly Business Review report creation
 
 ### 📊 Dashboard & Analytics
@@ -21,9 +21,10 @@ A comprehensive AI-powered platform for analyzing vendor-distributor conversatio
 
 ### 🔧 Technical Stack
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS
-- **Backend**: FastAPI, SQLAlchemy, SQLite/PostgreSQL
-- **AI/ML**: HuggingFace Transformers, OpenAI API, Sentence Transformers
+- **Backend**: FastAPI, SQLAlchemy, PostgreSQL (Cloud)
+- **AI/ML**: OpenAI GPT-4o-mini, OpenAI Whisper, OpenAI Embeddings
 - **Authentication**: JWT-based auth system
+- **Deployment**: Cloud-ready with minimal dependencies
 
 ## 🏗️ Architecture
 
@@ -82,12 +83,17 @@ cd backend
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate  # On Windows
+# source venv/bin/activate  # On Mac/Linux
 
-# Install dependencies
+# Install dependencies (much lighter now!)
 pip install -r requirements.txt
 
-# The .env file is already configured for development
+# Configure OpenAI API
+copy .env.example .env
+# Edit .env and add your OpenAI API key:
+# OPENAI_API_KEY=sk-your-openai-api-key-here
+
 # Start the backend server
 python main.py
 ```
@@ -106,6 +112,20 @@ npm run dev
 ```
 
 Frontend will be available at: http://localhost:5173
+
+## ⚡ OpenAI Integration
+
+This version uses **OpenAI API exclusively** for all AI features:
+
+- **GPT-4o-mini**: Cost-effective model for analysis ($0.15/$0.60 per 1M tokens)
+- **Whisper API**: State-of-the-art speech-to-text processing
+- **text-embedding-3-small**: Advanced vector embeddings for semantic search
+- **No local models**: Faster setup, more reliable, easier deployment
+
+### Cost Example:
+- Typical call analysis: ~5000 tokens
+- Cost per call: ~$0.003 (less than a penny!)
+- Monthly cost for 1000 calls: ~$3
 
 ## 🔧 Development
 

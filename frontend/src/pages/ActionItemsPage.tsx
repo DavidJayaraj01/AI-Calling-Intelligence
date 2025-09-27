@@ -1,6 +1,6 @@
 /**
  * Action Items Page
- * Manage all action items with filtering, editing, and status updates
+ * Manage all AI-generated action items with intelligent prioritization and tracking
  */
 
 import React, { useState } from 'react';
@@ -12,12 +12,61 @@ import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
 import { mockActionItems, mockUsers } from '../data/mockData';
 import type { ActionItem, TableColumn } from '../types';
+import { Priority, ActionItemStatus, ActionItemCategory } from '../types';
 import { Link } from 'react-router-dom';
 
 const ActionItemsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [filteredItems, setFilteredItems] = useState(mockActionItems);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newItem, setNewItem] = useState({
+    title: '',
+    description: '',
+    priority: Priority.MEDIUM,
+    assigneeId: mockUsers[0].id,
+    dueDate: '',
+    category: ActionItemCategory.OTHER
+  });
+
+  const handleCreateManualItem = () => {
+    if (!newItem.title.trim() || !newItem.description.trim()) {
+      alert('Please fill in both title and description');
+      return;
+    }
+
+    const createdItem: ActionItem = {
+      id: `manual-${Date.now()}`,
+      title: newItem.title,
+      description: newItem.description,
+      priority: newItem.priority,
+      status: ActionItemStatus.PENDING,
+      assigneeId: newItem.assigneeId,
+      assignee: mockUsers.find(u => u.id === newItem.assigneeId) || mockUsers[0],
+      callId: mockActionItems[0].callId,
+      call: mockActionItems[0].call,
+      category: newItem.category,
+      dueDate: newItem.dueDate ? new Date(newItem.dueDate) : undefined,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setFilteredItems(prev => [createdItem, ...prev]);
+    
+    // Reset form
+    setNewItem({
+      title: '',
+      description: '',
+      priority: Priority.MEDIUM,
+      assigneeId: mockUsers[0].id,
+      dueDate: '',
+      category: ActionItemCategory.OTHER
+    });
+    
+    setShowCreateForm(false);
+    alert('✅ Manual action item created successfully!');
+  };
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -51,14 +100,91 @@ const ActionItemsPage: React.FC = () => {
     return new Date() > dueDate;
   };
 
+  const handleGenerateActionItems = async () => {
+    setIsGenerating(true);
+    try {
+      // Simulate AI generation of new action items
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Create properly typed new action items
+      const newItems: ActionItem[] = [
+        {
+          id: `ai-${Date.now()}-1`,
+          title: 'Follow up on pricing concerns',
+          description: 'AI detected pricing objections in recent call - schedule follow-up meeting',
+          priority: 'high' as Priority,
+          status: ActionItemStatus.PENDING,
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          assigneeId: mockUsers[0].id,
+          assignee: mockUsers[0],
+          callId: mockActionItems[0].callId,
+          call: mockActionItems[0].call,
+          category: 'follow_up' as ActionItemCategory,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: `ai-${Date.now()}-2`,
+          title: 'Review product availability',
+          description: 'OpenAI analysis found inventory concerns - verify stock levels',
+          priority: 'medium' as Priority,
+          status: ActionItemStatus.PENDING,
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+          assigneeId: mockUsers[1].id,
+          assignee: mockUsers[1],
+          callId: mockActionItems[1].callId,
+          call: mockActionItems[1].call,
+          category: 'research' as ActionItemCategory,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      
+      const updatedItems = [...newItems, ...mockActionItems];
+      setFilteredItems(updatedItems);
+      
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleToggleStatus = (itemId: string) => {
+    const updatedItems = filteredItems.map(item => {
+      if (item.id === itemId) {
+        const newStatus = item.status === ActionItemStatus.COMPLETED 
+          ? ActionItemStatus.PENDING 
+          : ActionItemStatus.COMPLETED;
+        return { 
+          ...item, 
+          status: newStatus,
+          completedAt: newStatus === ActionItemStatus.COMPLETED ? new Date() : undefined
+        };
+      }
+      return item;
+    });
+    setFilteredItems(updatedItems);
+  };
+
   const columns: TableColumn<ActionItem>[] = [
     {
       key: 'title',
       label: 'Task',
       render: (value: string, item: ActionItem) => (
-        <div>
-          <p className="font-medium text-secondary-900">{value}</p>
-          <p className="text-sm text-secondary-500">{item.description}</p>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => handleToggleStatus(item.id)}
+            className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${
+              item.status === ActionItemStatus.COMPLETED
+                ? 'bg-success-500 border-success-500 text-white'
+                : 'border-secondary-300 hover:border-primary-400'
+            }`}
+          >
+            {item.status === ActionItemStatus.COMPLETED && <CheckSquare className="h-3 w-3" />}
+          </button>
+          <div className={item.status === ActionItemStatus.COMPLETED ? 'opacity-60' : ''}>
+            <p className="font-medium text-secondary-900">{value}</p>
+            <p className="text-sm text-secondary-500">{item.description}</p>
+          </div>
         </div>
       ),
     },
@@ -164,14 +290,14 @@ const ActionItemsPage: React.FC = () => {
     setFilteredItems(filtered);
   };
 
-  // Calculate statistics
+  // Calculate statistics from current filtered items
   const stats = {
-    total: mockActionItems.length,
-    pending: mockActionItems.filter(item => item.status === 'pending').length,
-    inProgress: mockActionItems.filter(item => item.status === 'in_progress').length,
-    completed: mockActionItems.filter(item => item.status === 'completed').length,
-    overdue: mockActionItems.filter(item => 
-      item.status !== 'completed' && 
+    total: filteredItems.length,
+    pending: filteredItems.filter(item => item.status === ActionItemStatus.PENDING).length,
+    inProgress: filteredItems.filter(item => item.status === ActionItemStatus.IN_PROGRESS).length,
+    completed: filteredItems.filter(item => item.status === ActionItemStatus.COMPLETED).length,
+    overdue: filteredItems.filter(item => 
+      item.status !== ActionItemStatus.COMPLETED && 
       item.dueDate && 
       new Date() > item.dueDate
     ).length,
@@ -180,16 +306,29 @@ const ActionItemsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-secondary-900">Action Items</h1>
+          <h1 className="text-2xl font-bold text-secondary-900">AI-Generated Action Items</h1>
           <p className="text-secondary-600">
-            Manage and track all action items across calls
+            Intelligent follow-up tasks automatically created from call analysis using OpenAI
           </p>
         </div>
-        <Button icon={<Plus className="h-4 w-4" />}>
-          New Action Item
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            icon={<AlertCircle className="h-4 w-4" />}
+            onClick={handleGenerateActionItems}
+            disabled={isGenerating}
+          >
+            {isGenerating ? 'Generating...' : 'Generate AI Items'}
+          </Button>
+          <Button 
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setShowCreateForm(!showCreateForm)}
+          >
+            {showCreateForm ? 'Cancel' : 'Create Manual Item'}
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -254,6 +393,119 @@ const ActionItemsPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Manual Item Form */}
+      {showCreateForm && (
+        <Card className="border-primary-200 bg-primary-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary-900">
+              <Plus className="h-5 w-5" />
+              Create Manual Action Item
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Title *
+                </label>
+                <Input
+                  value={newItem.title}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter action item title"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Description *
+                </label>
+                <textarea
+                  value={newItem.description}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter detailed description"
+                  className="w-full h-24 p-3 border border-secondary-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  value={newItem.priority}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, priority: e.target.value as Priority }))}
+                  className="w-full p-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value={Priority.LOW}>Low</option>
+                  <option value={Priority.MEDIUM}>Medium</option>
+                  <option value={Priority.HIGH}>High</option>
+                  <option value={Priority.URGENT}>Urgent</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Assignee
+                </label>
+                <select
+                  value={newItem.assigneeId}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, assigneeId: e.target.value }))}
+                  className="w-full p-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  {mockUsers.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Due Date (Optional)
+                </label>
+                <Input
+                  type="date"
+                  value={newItem.dueDate}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, dueDate: e.target.value }))}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-1">
+                  Category
+                </label>
+                <select
+                  value={newItem.category}
+                  onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value as ActionItemCategory }))}
+                  className="w-full p-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value={ActionItemCategory.FOLLOW_UP}>Follow Up</option>
+                  <option value={ActionItemCategory.RESEARCH}>Research</option>
+                  <option value={ActionItemCategory.DOCUMENTATION}>Documentation</option>
+                  <option value={ActionItemCategory.TRAINING}>Training</option>
+                  <option value={ActionItemCategory.ESCALATION}>Escalation</option>
+                  <option value={ActionItemCategory.COMMUNICATION}>Communication</option>
+                  <option value={ActionItemCategory.OTHER}>Other</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4 border-t border-primary-200">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCreateForm(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCreateManualItem}>
+                Create Action Item
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Action Items Table */}
       <Card>

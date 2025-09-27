@@ -85,6 +85,10 @@ const NotificationsPage: React.FC = () => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
   const filteredNotifications = notifications.filter(n => {
     if (filter === 'unread') return !n.isRead;
     if (filter === 'read') return n.isRead;
@@ -107,6 +111,15 @@ const NotificationsPage: React.FC = () => {
           {unreadCount > 0 && (
             <Button variant="outline" onClick={markAllAsRead}>
               Mark All Read
+            </Button>
+          )}
+          {notifications.length > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={clearAllNotifications}
+              className="text-error-600 hover:text-error-700 hover:bg-error-50"
+            >
+              Clear All
             </Button>
           )}
           <Badge variant="primary" size="lg">

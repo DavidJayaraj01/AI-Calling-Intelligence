@@ -12,7 +12,9 @@ import {
   FileText, 
   Bell, 
   Settings,
-  TrendingUp
+  TrendingUp,
+  Brain,
+  TestTube
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { getUnreadNotificationsCount, getCurrentUser } from '../../data/mockData';
@@ -26,6 +28,8 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Calls', href: '/calls', icon: Phone },
+  { name: 'AI Analysis', href: '/analyze', icon: Brain },
+  { name: 'Model Test', href: '/model-test', icon: TestTube },
   { name: 'Action Items', href: '/action-items', icon: CheckSquare },
   { name: 'Sentiment Timeline', href: '/sentiment', icon: TrendingUp },
   { name: 'QBR', href: '/qbr', icon: FileText },

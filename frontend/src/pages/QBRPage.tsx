@@ -14,6 +14,80 @@ import { mockQBRDraft } from '../data/mockData';
 const QBRPage: React.FC = () => {
   const qbr = mockQBRDraft;
 
+  const handleExportPDF = async () => {
+    // Simulate PDF generation
+    alert('📄 Generating PDF report...\n\n⏳ Please wait while we compile your QBR data.');
+    
+    try {
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // In a real application, you would generate and download the PDF
+      const reportContent = `
+QBR Report - ${qbr.title}
+Quarter: ${qbr.quarter} ${qbr.year}
+Status: ${qbr.status}
+
+Key Metrics:
+• Total Calls: ${qbr.metrics.totalCalls}
+• Pain Points: ${qbr.metrics.totalPainPoints}  
+• Action Items: ${qbr.metrics.totalActionItems}
+• Completion Rate: ${(qbr.actionItemsSummary.completionRate * 100).toFixed(0)}%
+
+Generated on: ${new Date().toLocaleDateString()}
+      `.trim();
+      
+      // Create and download a text file (in real app, this would be a PDF)
+      const blob = new Blob([reportContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `QBR-${qbr.quarter}-${qbr.year}-${qbr.distributor.name}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      alert('✅ QBR report exported successfully!\n\n📁 Check your Downloads folder.');
+      
+    } catch (error) {
+      alert('❌ Failed to export report. Please try again.');
+    }
+  };
+
+  const handleShare = () => {
+    const shareData = {
+      title: `${qbr.title} - QBR Report`,
+      text: `Check out our Q${qbr.quarter} ${qbr.year} business review for ${qbr.distributor.name} and ${qbr.vendor.name}`,
+      url: window.location.href
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      // Use native Web Share API if available
+      navigator.share(shareData)
+        .then(() => alert('✅ QBR report shared successfully!'))
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+      // Fallback: copy link to clipboard
+      const shareText = `${shareData.title}\n\n${shareData.text}\n\nLink: ${shareData.url}`;
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareText)
+          .then(() => {
+            alert('📋 QBR report link copied to clipboard!\n\nYou can now paste it in emails, messages, or documents.');
+          })
+          .catch(() => {
+            // Fallback alert with info
+            alert(`📤 Share this QBR report:\n\n${shareText}`);
+          });
+      } else {
+        // Final fallback
+        alert(`📤 Share this QBR report:\n\n${shareText}`);
+      }
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'published': return 'success';
@@ -47,10 +121,17 @@ const QBRPage: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" icon={<Share className="h-4 w-4" />}>
+          <Button 
+            variant="outline" 
+            icon={<Share className="h-4 w-4" />}
+            onClick={handleShare}
+          >
             Share
           </Button>
-          <Button icon={<Download className="h-4 w-4" />}>
+          <Button 
+            icon={<Download className="h-4 w-4" />}
+            onClick={handleExportPDF}
+          >
             Export PDF
           </Button>
         </div>

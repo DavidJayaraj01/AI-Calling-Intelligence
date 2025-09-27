@@ -35,33 +35,7 @@ class ActionItemStatus(str, enum.Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
-class ActionItemCategory(str, enum.Enum):
-    FOLLOW_UP = "follow_up"
-    RESEARCH = "research"
-    DOCUMENTATION = "documentation"
-    TRAINING = "training"
-    ESCALATION = "escalation"
-    COMMUNICATION = "communication"
-    OTHER = "other"
-
 # Core Models for Real Data Storage
-
-class User(Base):
-    """
-    Simple user model for authentication
-    """
-    __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
-    full_name = Column(String(255))
-    is_active = Column(Boolean, default=True)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
 class Call(Base):
     """
     Main calls table for storing real transcribed call data
@@ -180,7 +154,6 @@ class AnalyticsSnapshot(Base):
 
 # Export all models
 __all__ = [
-    "User",
     "Call",
     "PainPoint", 
     "ActionItem",
@@ -188,6 +161,5 @@ __all__ = [
     "CallSentiment",
     "PainPointSeverity",
     "ActionItemPriority",
-    "ActionItemStatus",
-    "ActionItemCategory"
+    "ActionItemStatus"
 ]
