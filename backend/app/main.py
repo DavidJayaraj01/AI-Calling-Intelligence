@@ -10,7 +10,7 @@ import time
 from loguru import logger
 import sys
 
-from app.core.config import settings
+from app.core.config import settings, validate_openai_key
 from app.core.database import engine, Base
 from app.api import auth, audio  # Remove old imports
 from app.api import calls_real  # New real data endpoints
@@ -36,6 +36,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     logger.info("Starting AI Call Intelligence API")
+    
+    # Validate OpenAI API key
+    try:
+        validate_openai_key()
+        logger.info("OpenAI API key validation successful")
+    except Exception as e:
+        logger.error(f"OpenAI API key validation failed: {e}")
+        raise e
     
     # Create database tables
     try:

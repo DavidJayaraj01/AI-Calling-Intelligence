@@ -34,10 +34,6 @@ class Settings(BaseSettings):
     OPENAI_WHISPER_MODEL: str = "whisper-1"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     
-    def __post_init__(self):
-        if not self.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
-    
     # File Upload Configuration
     MAX_UPLOAD_SIZE: int = 25 * 1024 * 1024  # 25MB for audio files
     ALLOWED_AUDIO_EXTENSIONS: List[str] = [".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"]
@@ -78,3 +74,12 @@ class Settings(BaseSettings):
 
 # Create a global settings instance
 settings = Settings()
+
+# Validation function for OpenAI API key
+def validate_openai_key():
+    """Validate that OpenAI API key is properly configured"""
+    if not settings.OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY environment variable is required but not set")
+    if not settings.OPENAI_API_KEY.startswith("sk-"):
+        raise ValueError("OPENAI_API_KEY must be a valid OpenAI API key starting with 'sk-'")
+    return True
