@@ -59,8 +59,9 @@ AI-Calling-Intelligence/
 3. **Configure Service**:
    - **Name**: `ai-call-intelligence-backend`
    - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r backend/requirements.txt`
-   - **Start Command**: `cd backend && python main.py`
+   - **Python Version**: `3.11` (IMPORTANT: Select 3.11, not 3.13)
+   - **Build Command**: `python3.11 -m pip install --upgrade pip && python3.11 -m pip install setuptools==68.2.2 wheel==0.41.2 && python3.11 -m pip install -r backend/requirements.txt`
+   - **Start Command**: `cd backend && python3.11 main.py`
    - **Plan**: Starter (Free tier)
 4. **Environment Variables**:
    ```
