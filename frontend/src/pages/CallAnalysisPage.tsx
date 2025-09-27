@@ -8,7 +8,7 @@ import { Upload, FileText, Brain, TrendingUp, AlertTriangle, CheckSquare } from 
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import api from '../services/api';
+import { demoAPI } from '../services/api';
 
 const CallAnalysisPage: React.FC = () => {
   const [transcript, setTranscript] = useState('');
@@ -66,7 +66,7 @@ Could we schedule a meeting to discuss this further? We value our partnership an
     setAnalysisResult(null);
 
     try {
-      const response = await api.demo.processCall(transcript, {
+      const response = await demoAPI.processCall(transcript, {
         distributorId: 'dist-1',
         vendorId: 'vendor-1',
         seedBrief: 'User-provided call transcript'
