@@ -62,9 +62,9 @@ AI-Calling-Intelligence/
    - **Name**: `ai-call-intelligence-backend`
    - **Environment**: `Python 3`
    - **Python Version**: `3.11` (IMPORTANT: Select 3.11, not 3.13)
-   - **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
-   - **Start Command**: `python main.py`
-   - **Root Directory**: `backend` (IMPORTANT: Set this in Render dashboard)
+   - **Build Command**: `cd backend && pip install --upgrade pip && pip install -r requirements.txt`
+   - **Start Command**: `cd backend && python main.py`
+   - **Root Directory**: Leave empty (use repo root)
    - **Plan**: Starter (Free tier)
 4. **Environment Variables**:
    ```
