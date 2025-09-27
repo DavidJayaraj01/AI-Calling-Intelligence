@@ -33,10 +33,7 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: ai-call-intelligence-backend
-          property: host
+        value: https://ai-calling-intelligence.onrender.com
     routes:
       - type: rewrite
         source: /*
