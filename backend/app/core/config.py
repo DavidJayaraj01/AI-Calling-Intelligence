@@ -29,10 +29,14 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     
     # OpenAI Configuration
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "sk-Dk6SKlvqjW40_sXl7recBbLqqY0B5vJlaFRxNm8Tr2T3BlbkFJkTBkcDKR-2HO7_LRwIdtK8CWL8QBjQhSSB-KIJPOEA")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = "gpt-4o-mini"
     OPENAI_WHISPER_MODEL: str = "whisper-1"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    
+    def __post_init__(self):
+        if not self.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY environment variable is required")
     
     # File Upload Configuration
     MAX_UPLOAD_SIZE: int = 25 * 1024 * 1024  # 25MB for audio files
