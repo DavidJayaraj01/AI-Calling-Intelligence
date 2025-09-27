@@ -15,9 +15,11 @@ Your project is already configured for Render deployment:
 ```
 AI-Calling-Intelligence/
 ├── render.yaml              # Render configuration
+├── requirements.txt         # Python dependencies (moved to root)
+├── runtime.txt             # Python version specification
+├── .python-version         # Python version for pyenv
 ├── backend/                 # Python FastAPI backend
 │   ├── main.py             # Entry point
-│   ├── requirements.txt    # Python dependencies
 │   └── app/               # FastAPI application
 ├── frontend/              # React TypeScript frontend
 │   ├── package.json       # Node.js dependencies
@@ -60,10 +62,10 @@ AI-Calling-Intelligence/
    - **Name**: `ai-call-intelligence-backend`
    - **Environment**: `Python 3`
    - **Python Version**: `3.11` (IMPORTANT: Select 3.11, not 3.13)
-   - **Build Command**: `pip install --upgrade pip && pip install -r backend/requirements.txt`
-   - **Start Command**: `cd backend && python main.py`
+   - **Build Command**: `pip install --upgrade pip && pip install -r requirements.txt`
+   - **Start Command**: `python main.py`
+   - **Root Directory**: `backend` (IMPORTANT: Set this in Render dashboard)
    - **Plan**: Starter (Free tier)
-   - **Root Directory**: Leave empty (uses repo root)
 4. **Environment Variables**:
    ```
    OPENAI_API_KEY=sk-your-openai-api-key-here
