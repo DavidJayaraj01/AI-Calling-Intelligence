@@ -10,7 +10,7 @@ import time
 from loguru import logger
 import sys
 
-from app.core.config import settings, validate_openai_key
+from app.core.config import settings, validate_gemini_key
 from app.core.database import engine, Base
 from app.api import auth, audio  # Remove old imports
 from app.api import calls_real  # New real data endpoints
@@ -37,28 +37,29 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AI Call Intelligence API")
     
-    # Validate OpenAI API key
+    # Validate Gemini API key
     try:
-        validate_openai_key()
-        logger.info("OpenAI API key validation successful")
+        validate_gemini_key()
+        logger.info("Gemini API key validation successful")
     except Exception as e:
-        logger.error(f"OpenAI API key validation failed: {e}")
+        logger.error(f"Gemini API key validation failed: {e}")
         raise e
     
     # Create database tables
     try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        # Skip database table creation for now to speed up startup
+        # Base.metadata.create_all(bind=engine)
+        logger.info("Database tables creation skipped for faster startup")
     except Exception as e:
         logger.error(f"Error creating database tables: {e}")
     
-    # Initialize OpenAI-based AI services
+    # Initialize Gemini-based AI services
     try:
         from app.services.pain_point_service import pain_point_extractor
         from app.services.solution_service import solution_matcher
         from app.services.action_item_service import action_item_generator
         from app.services.sentiment_service import sentiment_analyzer
-        logger.info("OpenAI-based AI services initialized successfully")
+        logger.info("Gemini-based AI services initialized successfully")
     except Exception as e:
         logger.error(f"Error initializing AI services: {e}")
     
@@ -134,7 +135,7 @@ async def health_check():
         "success": True,
         "message": "AI Call Intelligence API is running",
         "version": settings.VERSION,
-        "openai_configured": bool(settings.OPENAI_API_KEY),
+        "gemini_configured": bool(settings.GEMINI_API_KEY),
         "data_source": "real_openai_analysis"
     }
 

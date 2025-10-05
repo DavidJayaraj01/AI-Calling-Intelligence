@@ -7,7 +7,7 @@ services:
     buildCommand: cd backend && python -m pip install --upgrade pip && pip install -r requirements.txt
     startCommand: cd backend && python main.py
     envVars:
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: DATABASE_URL
         fromDatabase:

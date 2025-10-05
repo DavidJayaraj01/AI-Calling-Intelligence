@@ -1,19 +1,20 @@
 """
-Action Item Generation Service using OpenAI API
+Action Item Generation Service using Google Gemini API
 """
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import json
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from loguru import logger
 from app.core.config import settings
 from app.models import ActionItemPriority, ActionItemCategory, ActionItemStatus
 
 class ActionItemGenerator:
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        logger.info("Action item generator initialized with OpenAI API")
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        logger.info("Action item generator initialized with Gemini API")
 
     def _determine_priority(self, context: Dict[str, Any]) -> ActionItemPriority:
         """Determine priority based on pain point severity and urgency keywords"""
@@ -45,7 +46,7 @@ class ActionItemGenerator:
         else:
             return base_date + timedelta(days=14)
 
-    async def generate_action_items(
+    def generate_action_items(
         self,
         call_transcript: str,
         pain_points: List[Dict[str, Any]],
@@ -110,17 +111,16 @@ Return as JSON array:
 Focus on concrete, measurable actions that can realistically be completed.
 """
 
-            response = await self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an expert business relationship manager specializing in vendor-distributor partnerships."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.4,
-                max_tokens=2000
+            # Use Gemini API for generating action items
+            response = self.model.generate_content(
+                f"You are an expert business relationship manager specializing in vendor-distributor partnerships.\n\n{prompt}",
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.4,
+                    max_output_tokens=2000,
+                )
             )
             
-            content = response.choices[0].message.content
+            content = response.text
             
             try:
                 json_start = content.find('[')

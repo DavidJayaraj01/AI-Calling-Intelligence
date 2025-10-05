@@ -1,12 +1,11 @@
 """
-Audio processing API endpoints for OpenAI Whisper integration
+Audio processing API endpoints for Google Gemini integration
 Real-time audio transcription and analysis with database storage
 """
 import os
 import tempfile
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form, Depends
 from fastapi.responses import JSONResponse
-from openai import AsyncOpenAI
 from loguru import logger
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -20,12 +19,14 @@ import json
 
 router = APIRouter()
 
-# Initialize OpenAI client
-if not settings.OPENAI_API_KEY:
-    logger.warning("OPENAI_API_KEY not set. Audio processing will not work.")
+# Initialize Gemini API
+if not settings.GEMINI_API_KEY:
+    logger.warning("GEMINI_API_KEY not set. Audio processing will not work.")
     client = None
 else:
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    import google.generativeai as genai
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    client = genai.GenerativeModel(settings.GEMINI_MODEL)
 
 class TranscriptAnalysisRequest(BaseModel):
     transcript: str
@@ -43,10 +44,10 @@ async def transcribe_audio(file: UploadFile = File(...)) -> JSONResponse:
     """
     try:
         # Validate API key
-        if not settings.OPENAI_API_KEY:
+        if not settings.GEMINI_API_KEY:
             raise HTTPException(
                 status_code=500, 
-                detail="OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."
+                detail="Gemini API key not configured. Please set GEMINI_API_KEY environment variable."
             )
         
         # Validate file type
@@ -113,16 +114,16 @@ async def transcribe_audio(file: UploadFile = File(...)) -> JSONResponse:
         )
 
 @router.post("/analyze-transcript")
-async def analyze_transcript(data: Dict[str, Any]) -> JSONResponse:
+def analyze_transcript(data: Dict[str, Any]) -> JSONResponse:
     """
-    Analyze transcript using OpenAI GPT model
+    Analyze transcript using Google Gemini API
     """
     try:
         # Validate API key
-        if not settings.OPENAI_API_KEY:
+        if not settings.GEMINI_API_KEY:
             raise HTTPException(
                 status_code=500,
-                detail="OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."
+                detail="Gemini API key not configured. Please set GEMINI_API_KEY environment variable."
             )
         
         transcript = data.get("transcript", "").strip()
@@ -174,41 +175,62 @@ async def analyze_transcript(data: Dict[str, Any]) -> JSONResponse:
         
         user_prompt = f"Please analyze this call transcript:\n\n{transcript}"
         
-        # Call OpenAI API
-        response = await client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.3,
-            max_tokens=2000
+        # Call Gemini API
+        import google.generativeai as genai
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        response = model.generate_content(
+            f"{system_prompt}\n\n{user_prompt}",
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.3,
+                max_output_tokens=2000,
+            )
         )
         
-        analysis_text = response.choices[0].message.content
+        analysis_text = response.text
         logger.info("Analysis completed successfully")
         
         # Try to parse as JSON
         import json
+        import re
+        
         try:
+            # First try direct JSON parsing
             analysis_data = json.loads(analysis_text)
         except json.JSONDecodeError:
-            # If not valid JSON, return structured response
-            analysis_data = {
-                "overall_sentiment": "neutral",
-                "confidence_score": 0.7,
-                "pain_points": [],
-                "action_items": [],
-                "key_topics": ["analysis", "discussion"],
-                "summary": analysis_text[:500],
-                "recommendations": ["Review the call analysis", "Follow up as needed"]
-            }
+            try:
+                # Try to extract JSON from markdown code blocks
+                json_match = re.search(r'```json\s*(\{.*?\})\s*```', analysis_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1)
+                    analysis_data = json.loads(json_str)
+                else:
+                    # Try to find any JSON object in the response
+                    json_match = re.search(r'(\{.*?\})', analysis_text, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(1)
+                        analysis_data = json.loads(json_str)
+                    else:
+                        raise json.JSONDecodeError("No JSON found", analysis_text, 0)
+            except (json.JSONDecodeError, AttributeError):
+                # If still not valid JSON, return structured response
+                logger.warning(f"Failed to parse JSON from Gemini response: {analysis_text[:200]}")
+                analysis_data = {
+                    "overall_sentiment": "neutral",
+                    "confidence_score": 0.7,
+                    "pain_points": [],
+                    "action_items": [],
+                    "key_topics": ["analysis", "discussion"],
+                    "summary": analysis_text[:500] if len(analysis_text) > 500 else analysis_text,
+                    "recommendations": ["Review the call analysis", "Follow up as needed"]
+                }
         
         return JSONResponse(content={
             "success": True,
             "analysis": analysis_data,
-            "model_used": settings.OPENAI_MODEL,
-            "tokens_used": response.usage.total_tokens if response.usage else 0
+            "model_used": settings.GEMINI_MODEL,
+            "tokens_used": 0  # Gemini doesn't provide token usage in the same way
         })
     
     except HTTPException:

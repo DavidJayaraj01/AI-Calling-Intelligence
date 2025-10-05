@@ -1,20 +1,21 @@
 """
-Sentiment Analysis Service using OpenAI API
+Sentiment Analysis Service using Google Gemini API
 """
 import asyncio
 from typing import List, Dict, Any, Tuple
 import json
 import re
 from datetime import datetime
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from loguru import logger
 from app.core.config import settings
 from app.models import CallSentiment
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        logger.info("Sentiment analysis service initialized with OpenAI API")
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        logger.info("Sentiment analysis service initialized with Gemini API")
 
     def _segment_transcript(self, transcript: str, segment_length: int = 30) -> List[Dict[str, Any]]:
         """
@@ -64,15 +65,14 @@ class SentimentAnalyzer:
         else:
             return 'unknown'
 
-    async def analyze_sentiment(self, transcript: str, call_context: Dict[str, Any] = None) -> Dict[str, Any]:
+    def analyze_sentiment(self, transcript: str, call_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Analyze sentiment of entire call transcript using OpenAI API
+        Analyze sentiment of entire call transcript using Gemini API
         """
         try:
             segments = self._segment_transcript(transcript)
             
-            prompt = f"""
-You are an expert sentiment analyst. Analyze the sentiment of this business call transcript between a vendor and distributor.
+            prompt = f"""You are an expert sentiment analyst specializing in business communications. Analyze the sentiment of this business call transcript between a vendor and distributor.
 
 Transcript:
 {transcript}
@@ -83,30 +83,27 @@ Please analyze:
 3. Key emotions detected
 4. Sentiment for each speaker if identifiable
 
-Return your analysis as JSON:
+Return ONLY valid JSON with this exact format:
 {{
-    "overall_sentiment": "SENTIMENT",
+    "overall_sentiment": "POSITIVE|NEGATIVE|NEUTRAL",
     "confidence": 0.85,
     "emotions": ["emotion1", "emotion2"],
     "speaker_sentiments": {{
-        "distributor": "SENTIMENT",
-        "vendor": "SENTIMENT"
+        "distributor": "POSITIVE|NEGATIVE|NEUTRAL",
+        "vendor": "POSITIVE|NEGATIVE|NEUTRAL"
     }},
     "summary": "Brief summary of the sentiment analysis"
-}}
-"""
+}}"""
 
-            response = await self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an expert sentiment analyst specializing in business communications."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=1000
+            response = self.model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.2,
+                    max_output_tokens=1000,
+                )
             )
             
-            content = response.choices[0].message.content
+            content = response.text
             
             try:
                 json_start = content.find('{')
@@ -120,7 +117,7 @@ Return your analysis as JSON:
                 sentiment_data = {}
             
             # Analyze segments
-            segment_sentiments = await self._analyze_segments(segments)
+            segment_sentiments = self._analyze_segments(segments)
             
             result = {
                 'overall_sentiment': sentiment_data.get('overall_sentiment', 'NEUTRAL'),
@@ -139,25 +136,23 @@ Return your analysis as JSON:
             logger.error(f"Error analyzing sentiment: {e}")
             return self._fallback_sentiment_analysis(transcript)
 
-    async def _analyze_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _analyze_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Analyze sentiment for each segment"""
         segment_results = []
         
         for segment in segments:
             try:
-                prompt = f"Analyze the sentiment of this text segment (POSITIVE, NEGATIVE, or NEUTRAL): {segment['text']}"
+                prompt = f"You are a sentiment classifier. Analyze the sentiment of this text segment and respond with only POSITIVE, NEGATIVE, or NEUTRAL: {segment['text']}"
                 
-                response = await self.client.chat.completions.create(
-                    model=settings.OPENAI_MODEL,
-                    messages=[
-                        {"role": "system", "content": "You are a sentiment classifier. Respond with only POSITIVE, NEGATIVE, or NEUTRAL."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.1,
-                    max_tokens=10
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.1,
+                        max_output_tokens=10,
+                    )
                 )
                 
-                sentiment = response.choices[0].message.content.strip().upper()
+                sentiment = response.text.strip().upper()
                 if sentiment not in ['POSITIVE', 'NEGATIVE', 'NEUTRAL']:
                     sentiment = 'NEUTRAL'
                 
