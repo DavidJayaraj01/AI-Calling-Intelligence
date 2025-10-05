@@ -89,6 +89,12 @@ Vendor: Thanks for sharing, Priya. Let me recap: Inventory visibility and stock 
         console.log('Full analysis response:', analysisResponse);
         console.log('Analysis data:', analysisData);
         
+        // Debug individual fields
+        console.log('Pain points:', analysisData.pain_points);
+        console.log('Action items:', analysisData.action_items);
+        console.log('Recommendations:', analysisData.recommendations);
+        console.log('Overall sentiment:', analysisData.overall_sentiment);
+        
         // Parse the analysis results from OpenAI response
         const results: ModelTestResults = {
           speechToText: {

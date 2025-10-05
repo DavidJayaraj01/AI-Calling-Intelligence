@@ -4,7 +4,7 @@
  * NO MOCK DATA - Everything comes from actual call transcriptions and analysis
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -106,6 +106,8 @@ export const api = {
 
     // Transform backend response format to match frontend expectations
     if (response.success && (response as any).analysis) {
+      console.log('API Service - Backend response:', response);
+      console.log('API Service - Analysis data:', (response as any).analysis);
       return {
         success: true,
         data: (response as any).analysis, // Move analysis data to data field
