@@ -1,18 +1,33 @@
-# 🚀 AI Call Intelligence Platform
+# 🚀 AI Call Intelligenc### 🛠️ **Technical Excellence**
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
+- **Backend**: FastAPI + SQLAlchemy + PostgreSQL (Production) + SSL Support
+- **AI/ML**: 
+  - **Local Models** (1.2GB total):
+    - `all_MiniLM_L6_v2` (88M) - Sentence embeddings
+    - `multilingual_sentiment_model` (521M) - Sentiment analysis
+    - `roberta_finetuned` (477M) - Pain point extraction
+    - `s2t_small_librispeech` (114M) - Speech recognition backup
+  - **Ollama Llama3:8b** - Action item generation
+  - **Google Speech Recognition** - Free transcription (no API key)
+- **Audio Processing**: SpeechRecognition + pydub + ffmpeg
+- **Authentication**: JWT-based secure authentication system
+- **Deployment**: Production-ready on Render with auto-scaling
+- **Performance**: Optimized bundle sizes and lightning-fast API responsesorm
 
 > **🌟 Live Demo**: [Frontend](https://conversa-ai.onrender.com) | [Backend API](https://ai-calling-intelligence.onrender.com) | [API Docs](https://ai-calling-intelligence.onrender.com/docs)
 
-A comprehensive AI-powered platform for analyzing vendor-distributor conversations, extracting pain points, generating action items, and providing intelligent insights using OpenAI's cutting-edge APIs.
+A comprehensive AI-powered platform for analyzing vendor-distributor conversations, extracting pain points, generating action items, and providing intelligent insights using **local AI models** and **Ollama Llama3**. **No API keys required** - all AI processing runs locally for maximum privacy and zero usage costs.
 
 ## 🎯 Key Features
 
-### 🤖 **OpenAI-Powered AI Engine**
-- **🎙️ Speech-to-Text**: OpenAI Whisper API for 99%+ accuracy transcriptions
-- **🧠 Pain Point Extraction**: GPT-4o-mini for intelligent issue identification and categorization
-- **😊 Sentiment Analysis**: Real-time sentiment analysis with confidence scores and timeline
-- **✅ Action Item Generation**: Smart follow-up task creation with priority and timeline analysis
-- **💡 Solution Matching**: AI-powered solution recommendations using vector embeddings
-- **📊 QBR Generation**: Automated Quarterly Business Review report creation
+### 🤖 **Local AI Engine** (No API Keys Required!)
+- **🎙️ Speech-to-Text**: Google Speech Recognition (free, no API key needed) for accurate transcriptions
+- **🧠 Pain Point Extraction**: Local RoBERTa model for intelligent issue identification
+- **😊 Sentiment Analysis**: Local multilingual sentiment model with confidence scores
+- **✅ Action Item Generation**: Ollama Llama3:8b for smart task creation
+- **💡 Solution Matching**: Local sentence transformers for semantic search
+- **📊 QBR Generation**: Automated Quarterly Business Review reports
+- **🔒 100% Private**: All processing happens locally, your data never leaves your server
 
 ### � **Dashboard & Analytics**
 - **Real-time Metrics**: Live KPIs and performance indicators
