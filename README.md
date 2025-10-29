@@ -626,13 +626,15 @@ services:
 
 ### 🔧 **Common Issues & Solutions**
 
-| Problem | Solution | Prevention |
-|---------|----------|------------|
-| **CORS Errors** | Update `ALLOWED_ORIGINS` in backend config | Use proper frontend URL |
-| **OpenAI API Errors** | Check API key and billing | Monitor usage limits |
-| **Database Connection** | Verify DATABASE_URL format | Test connection string |
-| **Build Failures** | Check Node/Python versions | Use exact version requirements |
-| **Import Errors** | Check package installation | Use virtual environments |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| **Ollama Connection Error** | Ollama not running | Run `ollama serve` in terminal |
+| **Model Loading Fails** | Missing models | Run `python backend/setup_models.py` |
+| **Audio Transcription Error** | ffmpeg not installed | Install ffmpeg: `sudo apt install ffmpeg` (Linux) or `brew install ffmpeg` (Mac) |
+| **Database Connection Error** | Wrong DATABASE_URL | Verify PostgreSQL connection string in .env |
+| **CORS Errors** | Frontend URL not in allowed origins | Add your frontend URL to `ALLOWED_ORIGINS` in config.py |
+| **High Memory Usage** | All models loaded | Normal for local AI (~8-10GB total RAM usage) |
+| **Slow Processing** | CPU-only inference | Consider using GPU for faster processing |
 
 ### 📊 **Monitoring & Logs**
 
@@ -641,8 +643,11 @@ services:
 # Local development
 tail -f backend/logs/app.log
 
-# Production (Render)
-# View in Render dashboard logs section
+# Check specific errors
+grep "ERROR" backend/logs/app.log
+
+# View real-time logs
+python main.py  # Logs print to console in debug mode
 ```
 
 #### **Health Checks**:
@@ -650,9 +655,87 @@ tail -f backend/logs/app.log
 # Backend health
 curl http://localhost:8000/health
 
-# Full API status  
+# Detailed status including model availability
 curl http://localhost:8000/api/health
+
+# Check Ollama status
+curl http://localhost:11434/api/tags
+
+# Test model status
+curl http://localhost:8000/api/models/model-status
 ```
+
+### 🔍 **Debugging Steps**
+
+1. **Verify Ollama is Running**:
+   ```bash
+   # Check if Ollama is running
+   curl http://localhost:11434/api/tags
+   
+   # If not, start it
+   ollama serve
+   ```
+
+2. **Check Model Files**:
+   ```bash
+   # Verify models are downloaded
+   ls -lh backend/app/models/
+   # Should show: all_MiniLM_L6_v2, multilingual_sentiment_model, 
+   #              roberta_finetuned, s2t_small_librispeech
+   ```
+
+3. **Test Database Connection**:
+   ```bash
+   # From backend directory
+   python test_database.py
+   ```
+
+4. **Verify ffmpeg Installation**:
+   ```bash
+   ffmpeg -version
+   # Should show ffmpeg version info
+   ```
+
+5. **Check Python Dependencies**:
+   ```bash
+   pip list | grep -E "transformers|torch|speech"
+   ```
+
+### ⚠️ **Known Limitations**
+
+1. **First Run Delay**: Initial model loading takes 30-60 seconds
+2. **Memory Usage**: Requires 8GB+ RAM when all models are loaded
+3. **Ollama Requirement**: Action items require Ollama running locally
+4. **Audio Formats**: Supports common formats (MP3, WAV, M4A, WEBM)
+5. **Internet Required**: Only for initial model download and Google Speech API
+
+### 💡 **Performance Optimization**
+
+```env
+# Add to .env for better performance
+
+# Use GPU if available
+CUDA_VISIBLE_DEVICES=0
+
+# Reduce model precision (faster, slightly less accurate)
+TRANSFORMERS_PRECISION=fp16
+
+# Enable model caching
+HF_HOME=~/.cache/huggingface
+```
+
+### 🆘 **Getting Help**
+
+If you encounter issues:
+
+1. Check the logs: `backend/logs/app.log`
+2. Verify all prerequisites are installed
+3. Ensure Ollama is running: `ollama serve`
+4. Check GitHub Issues for similar problems
+5. Create a new issue with:
+   - Error message
+   - System info (OS, Python version, RAM)
+   - Steps to reproduce
 
 ## 🤝 **Contributing**
 
