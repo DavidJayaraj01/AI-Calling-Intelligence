@@ -415,33 +415,48 @@ VITE_DEBUG=true
 | `POST` | `/api/auth/register` | User registration | ✅ Active |
 | `GET` | `/api/auth/me` | Get current user profile | ✅ Active |
 
-### 🎙️ **Audio Processing (OpenAI)**
+### 🎙️ **Audio Processing** (Local AI)
 | Method | Endpoint | Description | Features |
 |--------|----------|-------------|----------|
-| `POST` | `/api/audio/process-complete` | Complete audio → insights pipeline | Whisper + GPT analysis |
-| `POST` | `/api/audio/transcribe-audio` | Audio → text transcription | Whisper API only |
-| `POST` | `/api/audio/analyze-transcript` | Text → AI analysis | GPT pain points + sentiment |
+| `POST` | `/api/calls/transcribe` | Audio → text transcription | Google Speech Recognition (free) |
+| `POST` | `/api/models/process-real-data` | Complete audio analysis pipeline | Full AI processing with local models |
+| `POST` | `/api/recording/start` | Start real-time recording | Live transcription + analysis |
+| `POST` | `/api/recording/stop` | Stop recording & process | Saves recording + generates insights |
 
 ### 📞 **Call Management**
 | Method | Endpoint | Description | Returns |
 |--------|----------|-------------|---------|
 | `GET` | `/api/calls` | List calls with pagination | Call list + metadata |
 | `GET` | `/api/calls/{id}` | Get detailed call info | Full call + analysis |
-| `GET` | `/api/calls/analytics/dashboard` | Dashboard metrics | Real-time KPIs |
+| `POST` | `/api/calls` | Create new call record | Call details |
+| `DELETE` | `/api/calls/{id}` | Delete call | Success confirmation |
 
-### ✅ **Action Items (AI-Generated)**
+### ✅ **Action Items** (Ollama Llama3 Generated)
 | Method | Endpoint | Description | AI Features |
 |--------|----------|-------------|-------------|
-| `GET` | `/api/action-items` | List action items | Smart filtering |
-| `GET` | `/api/action-items/{id}` | Get action item details | Full context |
+| `GET` | `/api/action-items` | List action items | Smart filtering + priority |
+| `GET` | `/api/action-items/{id}` | Get action item details | Full context + history |
 | `PATCH` | `/api/action-items/{id}/status` | Update status | Progress tracking |
-| `GET` | `/api/action-items/analytics/summary` | Action items metrics | Analytics |
+| `DELETE` | `/api/action-items/{id}` | Delete action item | Soft delete support |
 
-### 🔍 **System**
+### 📊 **Analytics & Dashboard**
+| Method | Endpoint | Description | Returns |
+|--------|----------|-------------|---------|
+| `GET` | `/api/dashboard` | Dashboard metrics | Real-time KPIs |
+| `GET` | `/api/qbr/generate` | Generate QBR report | Quarterly business review |
+| `GET` | `/api/calls/analytics/dashboard` | Call analytics | Detailed metrics |
+
+### 🧪 **AI Model Testing**
+| Method | Endpoint | Description | Models Used |
+|--------|----------|-------------|-------------|
+| `GET` | `/api/models/model-status` | Check model availability | All local models |
+| `POST` | `/api/models/test` | Test specific AI model | Selected model |
+
+### 🔍 **System Health**
 | Method | Endpoint | Description | Purpose |
 |--------|----------|-------------|---------|
-| `GET` | `/health` | Health check | Monitoring |
-| `GET` | `/api/health` | Detailed health status | Service status |
+| `GET` | `/health` | Basic health check | Monitoring |
+| `GET` | `/api/health` | Detailed health status | Service diagnostics |
 
 ## 🤖 AI/ML Models
 
