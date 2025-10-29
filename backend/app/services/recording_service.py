@@ -37,12 +37,13 @@ class RecordingService:
             )
             self.model = Speech2TextForConditionalGeneration.from_pretrained(
                 settings.STT_LOCAL_MODEL,
-                local_files_only=True
+                local_files_only=True,
+                use_safetensors=True
             ).to(self.device)
             
             logger.info(f"Recording service initialized with model: {settings.STT_LOCAL_MODEL}")
         except Exception as e:
-            logger.error(f"Error loading speech-to-text model: {e}")
+            logger.warning(f"Could not load STT model (using Google Speech Recognition as primary): {e}")
             self.model = None
             self.processor = None
 
