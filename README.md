@@ -62,30 +62,70 @@ backend/
 │   ├── api/               # API route handlers
 │   │   ├── auth.py        # Authentication endpoints
 │   │   ├── calls.py       # Call management endpoints
-│   │   └── action_items.py # Action item endpoints
+│   │   ├── action_items.py # Action item endpoints
+│   │   ├── recording.py   # Real-time recording
+│   │   ├── qbr.py         # QBR report generation
+│   │   └── model_test.py  # AI model testing
 │   ├── core/              # Core configuration
 │   │   ├── config.py      # Settings and environment
-│   │   ├── database.py    # Database connection
+│   │   ├── database.py    # PostgreSQL connection + SSL
 │   │   └── security.py    # JWT and security utilities
-│   ├── models/            # SQLAlchemy database models
+│   ├── models/            # SQLAlchemy database models + AI models
+│   │   ├── user.py        # User model
+│   │   ├── recording.py   # Recording model
+│   │   ├── all_MiniLM_L6_v2/              # Sentence embeddings (88M)
+│   │   ├── multilingual_sentiment_model/  # Sentiment analysis (521M)
+│   │   ├── roberta_finetuned/             # Pain point extraction (477M)
+│   │   └── s2t_small_librispeech/         # Speech-to-text backup (114M)
 │   ├── schemas/           # Pydantic request/response schemas
 │   └── services/          # AI/ML services
-│       ├── pain_point_service.py    # RoBERTa pain point extraction
-│       ├── sentiment_service.py     # Sentiment analysis
-│       ├── action_item_service.py   # Action item generation
-│       └── solution_service.py      # Solution matching
-├── .env                   # Environment variables
-└── requirements.txt       # Python dependencies
+│       ├── minimal_speech_to_text_service.py  # Google Speech Recognition
+│       ├── sentiment_service.py              # Local sentiment analysis
+│       ├── action_item_service.py            # Ollama Llama3 integration
+│       ├── minimal_pain_point_service.py     # Pain point extraction
+│       ├── recording_service.py              # Real-time recording
+│       └── qbr_generation_service.py         # QBR report generation
+├── logs/                  # Application logs
+├── .env                   # Environment variables (NO API KEYS!)
+├── requirements.txt       # Python dependencies
+└── setup_models.py        # Automated model download script
 ```
 
 ### Frontend Structure
 ```
-src/
+frontend/src/
 ├── components/            # Reusable UI components
+│   ├── layout/           # Layout components (Navbar, Sidebar, Layout)
+│   ├── ui/               # UI primitives (Button, Card, Input, etc.)
+│   ├── AIPipeline.tsx    # AI processing pipeline
+│   ├── AudioTranscription.tsx  # Audio upload & transcription
+│   ├── LiveRecording.tsx       # Real-time recording component
+│   ├── ModelTestResults.tsx    # AI model test results
+│   └── ErrorBoundary.tsx       # Error handling
 ├── pages/                 # Application pages/routes
+│   ├── Dashboard.tsx            # Main dashboard
+│   ├── DashboardReal.tsx        # Real data dashboard
+│   ├── CallsPage.tsx            # Call management
+│   ├── CallDetailPage.tsx       # Call details view
+│   ├── CallAnalysisPage.tsx     # AI analysis interface
+│   ├── CallAnalysisPageReal.tsx # Real AI analysis
+│   ├── ActionItemsPage.tsx      # Action items management
+│   ├── ModelTestPage.tsx        # AI model testing interface
+│   ├── QBRPage.tsx             # QBR management
+│   ├── SentimentTimelinePage.tsx # Sentiment visualization
+│   └── NotificationsPage.tsx    # Notifications center
 ├── services/              # API integration
+│   ├── api.ts            # Main API service
+│   └── realApi.ts        # Real data API service
 ├── contexts/              # React context providers
-└── types/                 # TypeScript type definitions
+│   └── AuthContext.tsx   # Authentication context
+├── types/                 # TypeScript type definitions
+│   ├── index.ts          # General types
+│   └── realData.ts       # Real data types
+├── data/                  # Static data
+│   └── mockData.ts       # Mock data for development
+└── utils/                 # Utility functions
+    └── cn.ts             # Tailwind class utilities
 ```
 
 ## 🚀 Quick Start
@@ -93,10 +133,44 @@ src/
 > **💡 Tip**: Check out the [live demo](https://conversa-ai.onrender.com) before setting up locally!
 
 ### 📋 Prerequisites
-- **Python 3.11+** (for backend)
+- **Python 3.10+** (for backend)
 - **Node.js 18+** (for frontend) 
-- **OpenAI API Key** (required for AI features)
+- **Ollama** (for action item generation) - [Download Here](https://ollama.com/)
+- **ffmpeg** (for audio processing) - Required for audio file conversion
+- **PostgreSQL** (production) or use existing Render database
 - **Git** (for cloning)
+- **1.5GB+ free disk space** (for AI models)
+
+### 🔧 **One-Time Setup: Ollama Installation**
+
+The system uses **Ollama Llama3:8b** for action item generation. Install once:
+
+```bash
+# Install Ollama (choose your OS)
+# macOS/Linux:
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Or download from: https://ollama.com/download
+
+# Pull the Llama3 model (one-time, ~4.7GB)
+ollama pull llama3:8b
+
+# Start Ollama service (runs in background)
+ollama serve
+```
+
+### 📦 **Install ffmpeg** (Required for Audio Processing)
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# macOS  
+brew install ffmpeg
+
+# Windows
+# Download from: https://ffmpeg.org/download.html
+```
 
 ### 1️⃣ **Clone the Repository**
 ```bash
@@ -121,12 +195,20 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
+# AI Models will download automatically on first run (~1.2GB)
+# Or manually run the setup script:
+python setup_models.py
+
 # Configure environment
 cp .env.example .env
 
-# Edit .env and add your OpenAI API key:
-# OPENAI_API_KEY=sk-your-openai-api-key-here
-# You can get one at: https://platform.openai.com/api-keys
+# Edit .env - No API keys needed! Just verify database settings:
+# DATABASE_URL=postgresql://your-db-url (or use provided Render DB)
+# OLLAMA_BASE_URL=http://localhost:11434 (default)
+# OLLAMA_MODEL=llama3:8b
+
+# Make sure Ollama is running
+ollama serve
 
 # Start the backend server
 python main.py
@@ -136,6 +218,8 @@ python main.py
 - 🌐 **API**: http://localhost:8000
 - 📖 **API Documentation**: http://localhost:8000/docs
 - ❤️ **Health Check**: http://localhost:8000/health
+
+**Note**: On first run, AI models will be downloaded automatically. This is a one-time process taking ~5-10 minutes depending on your internet speed.
 
 ### 3️⃣ **Frontend Setup**
 ```bash
