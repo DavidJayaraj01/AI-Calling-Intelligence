@@ -75,7 +75,7 @@ function Table<T extends Record<string, any>>({
                   >
                     {column.render
                       ? column.render(item[column.key], item)
-                      : String(item[column.key] || '-')
+                      : String(item[column.key] ?? '-')
                     }
                   </td>
                 ))}

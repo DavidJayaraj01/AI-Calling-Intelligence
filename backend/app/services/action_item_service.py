@@ -1,22 +1,29 @@
 """
-Action Item Generation Service using Google Gemini API
+Action Item Generation Service using Local Ollama Llama3 Model
 """
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import httpx
 import json
-import google.generativeai as genai
 from loguru import logger
 from app.core.config import settings
-from app.models import ActionItemPriority, ActionItemCategory, ActionItemStatus
+from app.models import Priority, ActionItemCategory, ActionItemStatus
 
 class ActionItemGenerator:
     def __init__(self):
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        logger.info("Action item generator initialized with Gemini API")
+        self.ollama_base_url = "http://localhost:11434"
+        self.model_name = "llama3:8b"
+        self._load_model()
 
-    def _determine_priority(self, context: Dict[str, Any]) -> ActionItemPriority:
+    def _load_model(self):
+        """Initialize Ollama connection"""
+        try:
+            logger.info(f"Action item generator initialized with Ollama {self.model_name}")
+        except Exception as e:
+            logger.error(f"Error initializing Ollama connection: {e}")
+
+    def _determine_priority(self, context: Dict[str, Any]) -> Priority:
         """Determine priority based on pain point severity and urgency keywords"""
         severity = context.get('severity', 'low')
         description = context.get('description', '').lower()
@@ -25,207 +32,236 @@ class ActionItemGenerator:
         high_keywords = ['important', 'major', 'significant', 'priority']
         
         if any(keyword in description for keyword in urgent_keywords) or severity == 'critical':
-            return ActionItemPriority.URGENT
+            return Priority.URGENT
         elif any(keyword in description for keyword in high_keywords) or severity == 'high':
-            return ActionItemPriority.HIGH
+            return Priority.HIGH
         elif severity == 'medium':
-            return ActionItemPriority.MEDIUM
+            return Priority.MEDIUM
         else:
-            return ActionItemPriority.LOW
+            return Priority.LOW
 
-    def _calculate_due_date(self, priority: ActionItemPriority, category: ActionItemCategory) -> datetime:
-        """Calculate due date based on priority and category"""
-        base_date = datetime.utcnow()
+    def _determine_category(self, description: str, pain_point_category: str) -> ActionItemCategory:
+        """Determine action item category based on description and pain point"""
+        description_lower = description.lower()
         
-        if priority == ActionItemPriority.URGENT:
-            return base_date + timedelta(days=1)
-        elif priority == ActionItemPriority.HIGH:
-            return base_date + timedelta(days=3)
-        elif priority == ActionItemPriority.MEDIUM:
-            return base_date + timedelta(days=7)
-        else:
-            return base_date + timedelta(days=14)
+        # Map pain point categories to action item categories
+        category_mapping = {
+            'technical': ActionItemCategory.ESCALATION,
+            'pricing': ActionItemCategory.FOLLOW_UP,
+            'product': ActionItemCategory.RESEARCH,
+            'service': ActionItemCategory.COMMUNICATION,
+            'delivery': ActionItemCategory.FOLLOW_UP,
+            'communication': ActionItemCategory.COMMUNICATION,
+        }
+        
+        # Check for specific keywords
+        if any(word in description_lower for word in ['research', 'investigate', 'study']):
+            return ActionItemCategory.RESEARCH
+        elif any(word in description_lower for word in ['document', 'record', 'note']):
+            return ActionItemCategory.DOCUMENTATION
+        elif any(word in description_lower for word in ['train', 'teach', 'educate']):
+            return ActionItemCategory.TRAINING
+        elif any(word in description_lower for word in ['escalate', 'urgent', 'critical']):
+            return ActionItemCategory.ESCALATION
+        elif any(word in description_lower for word in ['follow', 'check', 'verify']):
+            return ActionItemCategory.FOLLOW_UP
+        
+        # Use mapping from pain point category
+        return category_mapping.get(pain_point_category, ActionItemCategory.FOLLOW_UP)
 
-    def generate_action_items(
+    def _calculate_due_date(self, priority: Priority) -> datetime:
+        """Calculate due date based on priority"""
+        now = datetime.utcnow()
+        
+        if priority == Priority.URGENT:
+            return now + timedelta(days=1)
+        elif priority == Priority.HIGH:
+            return now + timedelta(days=3)
+        elif priority == Priority.MEDIUM:
+            return now + timedelta(weeks=1)
+        else:
+            return now + timedelta(weeks=2)
+
+    async def _generate_with_ollama(
         self,
-        call_transcript: str,
+        transcript: str,
+        pain_points: List[Dict[str, Any]],
+        solutions: List[Dict[str, Any]],
+        call_context: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Generate action items using local Ollama Llama3 model"""
+        try:
+            # Prepare context for the model
+            pain_points_text = "\n".join([
+                f"- {pp.get('description', 'N/A')} (Category: {pp.get('category', 'N/A')}, Severity: {pp.get('severity', 'N/A')})"
+                for pp in pain_points
+            ])
+            
+            solutions_text = "\n".join([
+                f"- {sol.get('title', 'N/A')}: {sol.get('description', 'N/A')}"
+                for sol in solutions[:3]  # Limit to top 3 solutions
+            ])
+            
+            prompt = f"""Based on the following sales call transcript and identified issues, generate specific action items.
+
+Call Transcript:
+{transcript[:1000]}...
+
+Identified Pain Points:
+{pain_points_text}
+
+Suggested Solutions:
+{solutions_text}
+
+Generate 2-4 actionable tasks that should be completed as follow-up to this call. For each action item, provide:
+1. A clear, specific title (max 100 characters)
+2. A detailed description of what needs to be done
+3. Who should be assigned (use 'Sales Team', 'Support Team', or 'Management')
+
+Format your response as a JSON array of objects with fields: title, description, assignee.
+"""
+
+            # Call Ollama API
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.ollama_base_url}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": prompt,
+                        "stream": False,
+                        "format": "json"
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    response_text = result.get('response', '')
+                    
+                    # Parse the JSON response
+                    try:
+                        action_items_data = json.loads(response_text)
+                        if not isinstance(action_items_data, list):
+                            action_items_data = [action_items_data]
+                    except json.JSONDecodeError:
+                        logger.warning("Failed to parse Ollama response as JSON, using fallback")
+                        return self._generate_fallback_action_items(pain_points, call_context)
+                    
+                    # Format action items
+                    action_items = []
+                    for idx, item in enumerate(action_items_data[:4]):  # Max 4 items
+                        title = item.get('title', f"Action Item {idx + 1}")[:100]
+                        description = item.get('description', item.get('title', 'Follow up required'))
+                        
+                        # Determine priority and category from pain points
+                        priority = self._determine_priority({
+                            'severity': pain_points[0].get('severity', 'medium') if pain_points else 'medium',
+                            'description': description
+                        })
+                        
+                        category = self._determine_category(
+                            description,
+                            pain_points[0].get('category', 'other') if pain_points else 'other'
+                        )
+                        
+                        action_items.append({
+                            'title': title,
+                            'description': description,
+                            'priority': priority.value,
+                            'category': category.value,
+                            'status': ActionItemStatus.PENDING.value,
+                            'due_date': self._calculate_due_date(priority).isoformat(),
+                            'assignee': item.get('assignee', 'Sales Team')
+                        })
+                    
+                    logger.info(f"Generated {len(action_items)} action items using Ollama")
+                    return action_items
+                else:
+                    logger.error(f"Ollama API error: {response.status_code} - {response.text}")
+                    return self._generate_fallback_action_items(pain_points, call_context)
+                    
+        except Exception as e:
+            logger.error(f"Error generating action items with Ollama: {e}")
+            return self._generate_fallback_action_items(pain_points, call_context)
+
+    def _generate_fallback_action_items(
+        self,
+        pain_points: List[Dict[str, Any]],
+        call_context: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Generate basic action items without AI when API fails"""
+        logger.info("Using fallback action item generation")
+        
+        action_items = []
+        
+        # Generate action items based on pain points
+        for idx, pain_point in enumerate(pain_points[:3]):  # Max 3 pain points
+            severity = pain_point.get('severity', 'medium')
+            category = pain_point.get('category', 'other')
+            description = pain_point.get('description', 'Issue identified')
+            
+            priority = self._determine_priority({
+                'severity': severity,
+                'description': description
+            })
+            
+            action_category = self._determine_category(description, category)
+            
+            action_items.append({
+                'title': f"Address {category} issue: {description[:50]}...",
+                'description': f"Follow up on: {description}",
+                'priority': priority.value,
+                'category': action_category.value,
+                'status': ActionItemStatus.PENDING.value,
+                'due_date': self._calculate_due_date(priority).isoformat(),
+                'assignee': 'Sales Team'
+            })
+        
+        # Add a general follow-up action if we have pain points
+        if pain_points:
+            action_items.append({
+                'title': 'Follow up with customer on discussed issues',
+                'description': 'Schedule a follow-up call to address the concerns raised during this conversation',
+                'priority': Priority.MEDIUM.value,
+                'category': ActionItemCategory.FOLLOW_UP.value,
+                'status': ActionItemStatus.PENDING.value,
+                'due_date': self._calculate_due_date(Priority.MEDIUM).isoformat(),
+                'assignee': 'Sales Team'
+            })
+        
+        logger.info(f"Generated {len(action_items)} fallback action items")
+        return action_items
+
+    async def generate_action_items(
+        self,
+        transcript: str,
         pain_points: List[Dict[str, Any]],
         solutions: List[Dict[str, Any]],
         call_context: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """
-        Generate action items based on call transcript, pain points, and solutions
+        Generate actionable items from call analysis
+        
+        Args:
+            transcript: Full call transcript
+            pain_points: List of extracted pain points
+            solutions: List of matched solutions
+            call_context: Additional context about the call
+            
+        Returns:
+            List of action items with priorities and due dates
         """
         try:
-            # Prepare context for the AI
-            context_info = f"Call Date: {call_context.get('call_date', 'Unknown')}\n"
-            context_info += f"Participants: {', '.join(call_context.get('participants', []))}\n"
-            
-            # Summarize pain points
-            pain_points_summary = ""
-            for pp in pain_points:
-                pain_points_summary += f"- {pp.get('description', '')} (Severity: {pp.get('severity', 'MEDIUM')})\n"
-            
-            # Summarize solutions
-            solutions_summary = ""
-            for sol in solutions:
-                solutions_summary += f"- {sol.get('title', '')}: {sol.get('description', '')}\n"
-
-            prompt = f"""
-You are a business relationship manager. Based on this vendor-distributor call, generate specific, actionable follow-up items.
-
-Context:
-{context_info}
-
-Identified Pain Points:
-{pain_points_summary}
-
-Available Solutions:
-{solutions_summary}
-
-Call Transcript:
-{call_transcript}
-
-Generate action items that address the pain points and move the business relationship forward. For each action item, provide:
-
-1. A clear, specific title
-2. Detailed description of what needs to be done
-3. Category (FOLLOW_UP, RESEARCH, DOCUMENTATION, TRAINING, ESCALATION, COMMUNICATION, OTHER)
-4. Priority (LOW, MEDIUM, HIGH, URGENT)
-5. Who should be responsible (distributor, vendor, or both)
-6. Expected timeline
-
-Return as JSON array:
-[
-  {{
-    "title": "Action item title",
-    "description": "Detailed description of the action",
-    "category": "CATEGORY_NAME", 
-    "priority": "PRIORITY_LEVEL",
-    "assigned_to": "distributor|vendor|both",
-    "timeline": "1-3 days|1 week|2 weeks|1 month",
-    "reasoning": "Why this action is needed"
-  }}
-]
-
-Focus on concrete, measurable actions that can realistically be completed.
-"""
-
-            # Use Gemini API for generating action items
-            response = self.model.generate_content(
-                f"You are an expert business relationship manager specializing in vendor-distributor partnerships.\n\n{prompt}",
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.4,
-                    max_output_tokens=2000,
-                )
+            # Always try Ollama first
+            action_items = await self._generate_with_ollama(
+                transcript, pain_points, solutions, call_context
             )
-            
-            content = response.text
-            
-            try:
-                json_start = content.find('[')
-                json_end = content.rfind(']') + 1
-                if json_start >= 0 and json_end > json_start:
-                    action_items_data = json.loads(content[json_start:json_end])
-                else:
-                    action_items_data = []
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing action items response: {e}")
-                action_items_data = []
-            
-            # Process and enhance action items
-            action_items = []
-            for i, item in enumerate(action_items_data):
-                try:
-                    # Validate category
-                    category = item.get('category', 'OTHER').upper()
-                    if category not in [cat.value.upper() for cat in ActionItemCategory]:
-                        category = 'OTHER'
-                    
-                    # Validate priority
-                    priority = item.get('priority', 'MEDIUM').upper()
-                    if priority not in [p.value.upper() for p in ActionItemPriority]:
-                        priority = 'MEDIUM'
-                    
-                    # Calculate due date based on timeline
-                    timeline = item.get('timeline', '1 week').lower()
-                    if 'day' in timeline:
-                        days = 3
-                    elif 'week' in timeline:
-                        days = 7
-                    elif 'month' in timeline:
-                        days = 30
-                    else:
-                        days = 7
-                    
-                    due_date = datetime.utcnow() + timedelta(days=days)
-                    
-                    enhanced_item = {
-                        'id': f"action_item_{i+1}",
-                        'title': item.get('title', 'Untitled Action'),
-                        'description': item.get('description', ''),
-                        'category': category,
-                        'priority': priority,
-                        'status': ActionItemStatus.PENDING.value.upper(),
-                        'assigned_to': item.get('assigned_to', 'distributor'),
-                        'due_date': due_date.isoformat(),
-                        'reasoning': item.get('reasoning', ''),
-                        'created_at': datetime.utcnow().isoformat(),
-                        'is_completed': False
-                    }
-                    
-                    action_items.append(enhanced_item)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing action item {i}: {e}")
-                    continue
             
             logger.info(f"Generated {len(action_items)} action items")
             return action_items
             
         except Exception as e:
-            logger.error(f"Error generating action items: {e}")
-            return self._fallback_action_items(pain_points, call_context)
-
-    def _fallback_action_items(self, pain_points: List[Dict[str, Any]], call_context: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Generate basic action items from pain points"""
-        logger.info("Using fallback action item generation")
-        
-        action_items = []
-        
-        for i, pain_point in enumerate(pain_points):
-            action_item = {
-                'id': f"action_item_{i+1}",
-                'title': f"Address {pain_point.get('category', 'General')} Issue",
-                'description': f"Follow up on: {pain_point.get('description', 'Issue identified in call')}",
-                'category': 'FOLLOW_UP',
-                'priority': pain_point.get('severity', 'MEDIUM'),
-                'status': ActionItemStatus.PENDING.value.upper(),
-                'assigned_to': 'distributor',
-                'due_date': (datetime.utcnow() + timedelta(days=7)).isoformat(),
-                'reasoning': 'Generated from identified pain point',
-                'created_at': datetime.utcnow().isoformat(),
-                'is_completed': False
-            }
-            action_items.append(action_item)
-        
-        # Add a general follow-up if no pain points
-        if not pain_points:
-            action_items.append({
-                'id': 'action_item_1',
-                'title': 'Schedule Follow-up Call',
-                'description': 'Schedule a follow-up call to discuss next steps and address any additional concerns',
-                'category': 'FOLLOW_UP',
-                'priority': 'MEDIUM',
-                'status': ActionItemStatus.PENDING.value.upper(),
-                'assigned_to': 'distributor',
-                'due_date': (datetime.utcnow() + timedelta(days=3)).isoformat(),
-                'reasoning': 'Standard follow-up for business relationship management',
-                'created_at': datetime.utcnow().isoformat(),
-                'is_completed': False
-            })
-        
-        return action_items
+            logger.error(f"Error in action item generation: {e}")
+            return self._generate_fallback_action_items(pain_points, call_context)
 
 # Global instance
 action_item_generator = ActionItemGenerator()

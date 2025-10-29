@@ -3,90 +3,23 @@
  * View and manage quarterly business review reports
  */
 
-import React from 'react';
-import { FileText, Download, Share, Calendar, TrendingUp, CheckCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { FileText, Download, Share, Calendar, TrendingUp, CheckCircle, Copy, Mail, Link, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import { SentimentLineChart, StatusBarChart } from '../components/ui/Charts';
 import { mockQBRDraft } from '../data/mockData';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const QBRPage: React.FC = () => {
   const qbr = mockQBRDraft;
-
-  const handleExportPDF = async () => {
-    // Simulate PDF generation
-    alert('📄 Generating PDF report...\n\n⏳ Please wait while we compile your QBR data.');
-    
-    try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real application, you would generate and download the PDF
-      const reportContent = `
-QBR Report - ${qbr.title}
-Quarter: ${qbr.quarter} ${qbr.year}
-Status: ${qbr.status}
-
-Key Metrics:
-• Total Calls: ${qbr.metrics.totalCalls}
-• Pain Points: ${qbr.metrics.totalPainPoints}  
-• Action Items: ${qbr.metrics.totalActionItems}
-• Completion Rate: ${(qbr.actionItemsSummary.completionRate * 100).toFixed(0)}%
-
-Generated on: ${new Date().toLocaleDateString()}
-      `.trim();
-      
-      // Create and download a text file (in real app, this would be a PDF)
-      const blob = new Blob([reportContent], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = `QBR-${qbr.quarter}-${qbr.year}-${qbr.distributor.name}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      alert('✅ QBR report exported successfully!\n\n📁 Check your Downloads folder.');
-      
-    } catch (error) {
-      alert('❌ Failed to export report. Please try again.');
-    }
-  };
-
-  const handleShare = () => {
-    const shareData = {
-      title: `${qbr.title} - QBR Report`,
-      text: `Check out our Q${qbr.quarter} ${qbr.year} business review for ${qbr.distributor.name} and ${qbr.vendor.name}`,
-      url: window.location.href
-    };
-
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-      // Use native Web Share API if available
-      navigator.share(shareData)
-        .then(() => alert('✅ QBR report shared successfully!'))
-        .catch((error) => console.log('Error sharing:', error));
-    } else {
-      // Fallback: copy link to clipboard
-      const shareText = `${shareData.title}\n\n${shareData.text}\n\nLink: ${shareData.url}`;
-      
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(shareText)
-          .then(() => {
-            alert('📋 QBR report link copied to clipboard!\n\nYou can now paste it in emails, messages, or documents.');
-          })
-          .catch(() => {
-            // Fallback alert with info
-            alert(`📤 Share this QBR report:\n\n${shareText}`);
-          });
-      } else {
-        // Final fallback
-        alert(`📤 Share this QBR report:\n\n${shareText}`);
-      }
-    }
-  };
+  const [isExporting, setIsExporting] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
+  const qbrRef = useRef<HTMLDivElement>(null);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -110,8 +43,110 @@ Generated on: ${new Date().toLocaleDateString()}
     color: priority === 'urgent' ? '#ef4444' : priority === 'high' ? '#f59e0b' : '#0ea5e9',
   }));
 
+  // Export PDF functionality
+  const exportToPDF = async () => {
+    if (!qbrRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      // Create canvas from the QBR content
+      const canvas = await html2canvas(qbrRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: qbrRef.current.scrollWidth,
+        height: qbrRef.current.scrollHeight,
+      });
+
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      let position = 0;
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add additional pages if needed
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Generate filename
+      const filename = `QBR_Q${qbr.quarter}_${qbr.year}_${qbr.distributor.name.replace(/\s+/g, '_')}_${qbr.vendor.name.replace(/\s+/g, '_')}.pdf`;
+      
+      // Download PDF
+      pdf.save(filename);
+      
+      console.log('PDF exported successfully');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Share functionality
+  const handleShare = () => {
+    // Generate share URL (in a real app, this would be a unique URL)
+    const baseUrl = window.location.origin;
+    const shareUrl = `${baseUrl}/qbr/share/${qbr.id}`;
+    setShareUrl(shareUrl);
+    setShowShareModal(true);
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
+
+  const shareViaEmail = () => {
+    const subject = encodeURIComponent(`QBR Report - Q${qbr.quarter} ${qbr.year}`);
+    const body = encodeURIComponent(`Please find the Quarterly Business Review report for Q${qbr.quarter} ${qbr.year} between ${qbr.distributor.name} and ${qbr.vendor.name}.\n\nView the report: ${shareUrl}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const shareViaLinkedIn = () => {
+    const url = encodeURIComponent(shareUrl);
+    const title = encodeURIComponent(`QBR Report - Q${qbr.quarter} ${qbr.year}`);
+    const summary = encodeURIComponent(`Quarterly Business Review for ${qbr.distributor.name} and ${qbr.vendor.name}`);
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}&title=${title}&summary=${summary}`);
+  };
+
+  const shareViaTwitter = () => {
+    const text = encodeURIComponent(`Check out our Q${qbr.quarter} ${qbr.year} Quarterly Business Review report!`);
+    const url = encodeURIComponent(shareUrl);
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={qbrRef}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -129,10 +164,11 @@ Generated on: ${new Date().toLocaleDateString()}
             Share
           </Button>
           <Button 
-            icon={<Download className="h-4 w-4" />}
-            onClick={handleExportPDF}
+            icon={isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            onClick={exportToPDF}
+            disabled={isExporting}
           >
-            Export PDF
+            {isExporting ? 'Exporting...' : 'Export PDF'}
           </Button>
         </div>
       </div>
@@ -324,6 +360,100 @@ Generated on: ${new Date().toLocaleDateString()}
           </div>
         </CardContent>
       </Card>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-secondary-900">Share QBR Report</h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="text-secondary-400 hover:text-secondary-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Share URL
+                </label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={shareUrl}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-secondary-300 rounded-md text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    onClick={copyToClipboard}
+                  >
+                    {copySuccess ? 'Copied!' : 'Copy'}
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Share via
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<Mail className="h-4 w-4" />}
+                    onClick={shareViaEmail}
+                  >
+                    Email
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<Link className="h-4 w-4" />}
+                    onClick={shareViaLinkedIn}
+                  >
+                    LinkedIn
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<Link className="h-4 w-4" />}
+                    onClick={shareViaTwitter}
+                  >
+                    Twitter
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={<Download className="h-4 w-4" />}
+                    onClick={exportToPDF}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? 'Exporting...' : 'PDF'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-secondary-200">
+                <Button
+                  variant="primary"
+                  onClick={() => setShowShareModal(false)}
+                  className="w-full"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

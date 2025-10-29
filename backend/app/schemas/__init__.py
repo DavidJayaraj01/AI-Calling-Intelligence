@@ -135,8 +135,8 @@ class VendorResponse(VendorBase):
 
 # Call schemas
 class CallBase(BaseSchema):
-    distributor_id: uuid.UUID
-    vendor_id: uuid.UUID
+    distributor_id: int
+    vendor_id: int
     seed_brief: Optional[str] = None
     transcript: str
     metadata_json: Optional[Dict[str, Any]] = None
@@ -148,17 +148,14 @@ class CallProcessRequest(BaseSchema):
     """Request schema for processing a call with AI analysis"""
     audio_file: Optional[str] = None  # Base64 encoded audio or file path
     transcript: Optional[str] = None  # Direct transcript input
-    distributor_id: uuid.UUID
-    vendor_id: uuid.UUID
+    distributor_id: int
+    vendor_id: int
     seed_brief: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 class CallResponse(CallBase):
-    id: uuid.UUID
-    overall_sentiment: Optional[SentimentType] = None
-    confidence_score: Optional[float] = None
+    call_id: int
     created_at: datetime
-    updated_at: datetime
 
 class CallDetailResponse(CallResponse):
     pain_points: List['PainPointResponse'] = []
@@ -167,23 +164,16 @@ class CallDetailResponse(CallResponse):
 
 # Pain Point schemas
 class PainPointBase(BaseSchema):
-    call_id: uuid.UUID
+    call_id: int
     description: str
-    category: PainPointCategory
-    severity: SeverityLevel
-    start_time: Optional[float] = None
-    end_time: Optional[float] = None
-    confidence: float
-    is_resolved: bool = False
 
 class PainPointCreate(PainPointBase):
     vector_embedding: Optional[List[float]] = None
 
 class PainPointResponse(PainPointBase):
-    id: uuid.UUID
-    extracted_at: datetime
+    painpoint_id: int
+    vector_embedding: Optional[List[float]] = None
     created_at: datetime
-    updated_at: datetime
 
 # Solution Resource schemas
 class SolutionResourceBase(BaseSchema):
@@ -206,54 +196,40 @@ class SolutionResourceResponse(SolutionResourceBase):
 
 # Action Item schemas
 class ActionItemBase(BaseSchema):
-    call_id: uuid.UUID
-    title: str
+    call_id: int
     description: str
-    assignee_id: uuid.UUID
-    priority: Priority
-    status: ActionItemStatus = ActionItemStatus.PENDING
-    category: ActionItemCategory
+    owner_id: Optional[int] = None
     due_date: Optional[datetime] = None
-    notes: Optional[str] = None
+    status: str = "pending"
 
 class ActionItemCreate(ActionItemBase):
     pass
 
 class ActionItemUpdate(BaseSchema):
-    title: Optional[str] = None
     description: Optional[str] = None
-    assignee_id: Optional[uuid.UUID] = None
-    priority: Optional[Priority] = None
-    status: Optional[ActionItemStatus] = None
-    category: Optional[ActionItemCategory] = None
+    owner_id: Optional[int] = None
     due_date: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    notes: Optional[str] = None
+    status: Optional[str] = None
 
 class ActionItemResponse(ActionItemBase):
-    id: uuid.UUID
-    completed_at: Optional[datetime] = None
+    action_id: int
     created_at: datetime
-    updated_at: datetime
 
 # Sentiment Segment schemas
 class SentimentSegmentBase(BaseSchema):
-    call_id: uuid.UUID
+    call_id: int
     start_time: float
     end_time: float
-    sentiment: SentimentType
+    sentiment: str
     confidence: float
     speaker: Optional[str] = None
     transcript_excerpt: Optional[str] = None
-    emotions_json: Optional[Dict[str, Any]] = None
 
 class SentimentSegmentCreate(SentimentSegmentBase):
     pass
 
 class SentimentSegmentResponse(SentimentSegmentBase):
-    id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
+    segment_id: int
 
 # Analytics schemas
 class DashboardMetrics(BaseSchema):
@@ -267,7 +243,7 @@ class DashboardMetrics(BaseSchema):
     action_items_by_status: Dict[str, int]
 
 class SentimentAnalysisResponse(BaseSchema):
-    call_id: uuid.UUID
+    call_id: int
     overall_sentiment: SentimentType
     overall_confidence: float
     sentiment_segments: List[SentimentSegmentResponse]

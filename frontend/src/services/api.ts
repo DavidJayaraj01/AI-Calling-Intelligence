@@ -1,479 +1,657 @@
 /**
- * API Service for AI Call Intelligence Platform
- * REAL DATA ONLY - All endpoints connect to OpenAI-powered backend
- * NO MOCK DATA - Everything comes from actual call transcriptions and analysis
+ * API Service for AI Call Intelligence Frontend
+ * Handles all backend communication including local model endpoints
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-export interface ApiResponse<T = any> {
+export interface APIResponse<T = any> {
   success: boolean;
+  message: string;
   data?: T;
-  error?: string;
-  message?: string;
-  pagination?: {
-    total: number;
-    skip: number;
-    limit: number;
-    has_more: boolean;
-  };
 }
 
-// API call wrapper with better error handling
-async function apiCall<T = any>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<ApiResponse<T>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
 
-    const data = await response.json();
+export interface Call {
+  call_id: number;
+  distributor_id: number;
+  vendor_id: number;
+  seed_brief: string;
+  transcript: string;
+  created_at: string;
+  metadata_json?: Record<string, any>;
+}
 
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.detail || data.error || 'API request failed',
-      };
-    }
+export interface CallDetail extends Call {
+  pain_points: PainPoint[];
+  action_items: ActionItem[];
+  sentiment_segments: SentimentSegment[];
+}
 
-    // Handle different response formats
-    if (data.success !== undefined) {
-      return data;
-    }
+export interface PainPoint {
+  painpoint_id: number;
+  call_id: number;
+  description: string;
+  vector_embedding?: number[];
+  created_at: string;
+}
 
-    return {
-      success: true,
-      data: data,
-    };
-  } catch (error) {
-    console.error('API Error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Network connection failed',
-    };
+export interface ActionItem {
+  action_id: number;
+  call_id: number;
+  description: string;
+  owner_id?: number;
+  due_date?: string;
+  status: string;
+  created_at: string;
+}
+
+export interface SentimentSegment {
+  segment_id: number;
+  call_id: number;
+  start_time: number;
+  end_time: number;
+  sentiment: string;
+  confidence: number;
+  speaker?: string;
+  transcript_excerpt?: string;
+}
+
+export interface TranscriptionResult {
+  text: string;
+  language: string;
+  confidence: number;
+  duration: number;
+  model_used: string;
+  segments: TranscriptionSegment[];
+}
+
+export interface TranscriptionSegment {
+  start: number;
+  end: number;
+  text: string;
+  confidence: number;
+  words?: Array<{
+    word: string;
+    start: number;
+    end: number;
+    confidence: number;
+  }>;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  distributor_id?: string;
+  vendor_id?: string;
+  is_active: boolean;
+  created_at: string;
+  last_login_at?: string;
+}
+
+export interface Token {
+  access_token: string;
+  token_type: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface UserCreate {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  distributor_id?: string;
+  vendor_id?: string;
+}
+
+export interface DashboardMetrics {
+  total_calls: number;
+  total_pain_points: number;
+  total_action_items: number;
+  pending_action_items: number;
+  average_sentiment: number;
+  sentiment_trend: Array<{
+    date: string;
+    sentiment: number;
+    call_count: number;
+  }>;
+  pain_points_by_category: Record<string, number>;
+  action_items_by_status: Record<string, number>;
+}
+
+class APIService {
+  private baseURL: string;
+  private token: string | null = null;
+
+  constructor() {
+    this.baseURL = API_BASE_URL;
+    this.token = localStorage.getItem('authToken');
   }
-}
 
-// Real API endpoints - no mock data
-export const api = {
-  // === REAL AUDIO PROCESSING WITH OPENAI ===
-  
-  /**
-   * Process audio file with real OpenAI Whisper transcription and GPT analysis
-   * Stores results in database - replaces all sample data
-   */
-  async processAudio(audioFile: File, title?: string, description?: string): Promise<ApiResponse> {
+  private getHeaders(): Headers {
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+    });
+
+    // Demo mode - no token required
+    // if (this.token) {
+    //   headers.append('Authorization', `Bearer ${this.token}`);
+    // }
+
+    return headers;
+  }
+
+  private getFormHeaders(): Headers {
+    const headers = new Headers();
+
+    // Demo mode - no token required
+    // if (this.token) {
+    //   headers.append('Authorization', `Bearer ${this.token}`);
+    // }
+
+    return headers;
+  }
+
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // Authentication
+  async login(email: string, password: string): Promise<Token> {
     const formData = new FormData();
-    formData.append('file', audioFile);
-    if (title) formData.append('title', title);
-    if (description) formData.append('description', description);
+    formData.append('username', email);
+    formData.append('password', password);
 
-    return apiCall('/api/audio/process-complete', {
+    const response = await fetch(`${this.baseURL}/api/auth/login`, {
       method: 'POST',
       body: formData,
-      headers: {}, // Remove Content-Type to let browser set it for FormData
     });
-  },
 
-  /**
-   * Transcribe audio only (real Whisper API)
-   */
-  async transcribeAudio(audioFile: File): Promise<ApiResponse> {
+    const result = await this.handleResponse<Token>(response);
+    this.token = result.access_token;
+    localStorage.setItem('authToken', this.token);
+    return result;
+  }
+
+  async register(userData: UserCreate): Promise<User> {
+    const response = await fetch(`${this.baseURL}/api/auth/register`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(userData),
+    });
+
+    return this.handleResponse<User>(response);
+  }
+
+  async logout(): Promise<void> {
+    this.token = null;
+    localStorage.removeItem('authToken');
+  }
+
+  async getCurrentUser(): Promise<User> {
+    const response = await fetch(`${this.baseURL}/api/auth/me`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<User>(response);
+  }
+
+  // Calls
+  async getCalls(params?: {
+    page?: number;
+    limit?: number;
+    distributor_id?: string;
+    vendor_id?: string;
+    start_date?: string;
+    end_date?: string;
+    sentiment?: string;
+  }): Promise<PaginatedResponse<Call>> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const response = await fetch(`${this.baseURL}/api/calls/?${searchParams}`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<PaginatedResponse<Call>>(response);
+  }
+
+  async getCallDetail(callId: string): Promise<CallDetail> {
+    const response = await fetch(`${this.baseURL}/api/calls/${callId}`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<CallDetail>(response);
+  }
+
+  async createCall(callData: {
+    distributor_id: string;
+    vendor_id: string;
+    seed_brief: string;
+    transcript: string;
+    metadata_json?: Record<string, any>;
+  }): Promise<Call> {
+    const response = await fetch(`${this.baseURL}/api/calls/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(callData),
+    });
+
+    return this.handleResponse<Call>(response);
+  }
+
+  async processCall(callData: {
+    distributor_id: number;
+    vendor_id: number;
+    seed_brief?: string;
+    transcript: string;
+    metadata?: Record<string, any>;
+  }): Promise<APIResponse> {
+    const response = await fetch(`${this.baseURL}/api/calls/process`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(callData),
+    });
+
+    return this.handleResponse<APIResponse>(response);
+  }
+
+  async deleteCall(callId: string): Promise<{ message: string }> {
+    const response = await fetch(`${this.baseURL}/api/calls/${callId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<{ message: string }>(response);
+  }
+
+  // Speech-to-Text (Local Model)
+  async transcribeAudio(audioFile: File, language: string = 'en'): Promise<APIResponse<TranscriptionResult>> {
     const formData = new FormData();
-    formData.append('file', audioFile);
+    formData.append('audio_file', audioFile);
+    formData.append('language', language);
 
-    return apiCall('/api/audio/transcribe-audio', {
+    const response = await fetch(`${this.baseURL}/api/calls/transcribe`, {
       method: 'POST',
+      headers: this.getFormHeaders(),
       body: formData,
-      headers: {}, // Remove Content-Type for FormData
     });
-  },
 
-  /**
-   * Analyze transcript with GPT (real analysis)
-   */
-  async analyzeTranscript(transcript: string): Promise<ApiResponse> {
-    const response = await apiCall('/api/audio/analyze-transcript', {
+    return this.handleResponse<APIResponse<TranscriptionResult>>(response);
+  }
+
+  async getSupportedLanguages(): Promise<APIResponse<Record<string, string>>> {
+    const response = await fetch(`${this.baseURL}/api/calls/supported-languages`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<Record<string, string>>>(response);
+  }
+
+  // Action Items
+  async getActionItems(params?: {
+    page?: number;
+    limit?: number;
+    call_id?: string;
+    status?: string;
+    priority?: string;
+    assignee_id?: string;
+  }): Promise<PaginatedResponse<ActionItem>> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const response = await fetch(`${this.baseURL}/api/action-items/?${searchParams}`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<PaginatedResponse<ActionItem>>(response);
+  }
+
+  async updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ActionItem> {
+    const response = await fetch(`${this.baseURL}/api/action-items/${actionItemId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(updates),
+    });
+
+    return this.handleResponse<ActionItem>(response);
+  }
+
+  async deleteActionItem(actionItemId: string): Promise<{ message: string }> {
+    const response = await fetch(`${this.baseURL}/api/action-items/${actionItemId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<{ message: string }>(response);
+  }
+
+  async completeActionItem(actionItemId: string): Promise<ActionItem> {
+    const response = await fetch(`${this.baseURL}/api/action-items/${actionItemId}/complete`, {
       method: 'POST',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<ActionItem>(response);
+  }
+
+  // Dashboard Analytics
+  async getDashboardData(): Promise<DashboardMetrics> {
+    const response = await fetch(`${this.baseURL}/api/dashboard`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<DashboardMetrics>(response);
+  }
+
+  // Sentiment Analysis
+  async getSentimentSegments(callId: string): Promise<SentimentSegment[]> {
+    const response = await fetch(`${this.baseURL}/api/calls/${callId}/sentiment-segments`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<SentimentSegment[]>(response);
+  }
+
+  async getSentimentTrend(params?: {
+    start_date?: string;
+    end_date?: string;
+    distributor_id?: string;
+    vendor_id?: string;
+  }): Promise<Array<{
+    date: string;
+    sentiment: number;
+    call_count: number;
+  }>> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const response = await fetch(`${this.baseURL}/api/analytics/sentiment-trend?${searchParams}`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<Array<{
+      date: string;
+      sentiment: number;
+      call_count: number;
+    }>>(response);
+  }
+
+  // Email Notifications
+  async sendEmailNotification(data: {
+    actionItemId: string;
+    recipientEmail: string;
+    type: 'overdue_reminder' | 'due_reminder' | 'assignment';
+    subject?: string;
+    message?: string;
+  }): Promise<APIResponse<{ message: string; emailId: string }>> {
+    const response = await fetch(`${this.baseURL}/api/notifications/email`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    return this.handleResponse<APIResponse<{ message: string; emailId: string }>>(response);
+  }
+
+  async getEmailNotifications(params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    status?: string;
+  }): Promise<PaginatedResponse<{
+    id: string;
+    recipientEmail: string;
+    subject: string;
+    type: string;
+    status: string;
+    sentAt: string;
+    actionItemId?: string;
+  }>> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const response = await fetch(`${this.baseURL}/api/notifications/email?${searchParams}`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<PaginatedResponse<{
+      id: string;
+      recipientEmail: string;
+      subject: string;
+      type: string;
+      status: string;
+      sentAt: string;
+      actionItemId?: string;
+    }>>(response);
+  }
+
+  // Model Health Check
+  async checkModelHealth(): Promise<APIResponse<{
+    roberta_model: boolean;
+    sentiment_model: boolean;
+    vector_model: boolean;
+    stt_model: boolean;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/health/models`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  // System Health Check
+  async checkSystemHealth(): Promise<APIResponse<any>> {
+    const response = await fetch(`${this.baseURL}/api/health/system`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  // Database Health Check
+  async checkDatabaseHealth(): Promise<APIResponse<any>> {
+    const response = await fetch(`${this.baseURL}/api/health/database`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  // Model Testing
+  async testModels(): Promise<APIResponse<{
+    overall_status: string;
+    models_tested: number;
+    results: Record<string, any>;
+    test_transcript: string;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/models/test-models`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  async processRealData(transcript: string): Promise<APIResponse<{
+    call_id: string;
+    pain_points_count: number;
+    action_items_count: number;
+    sentiment_segments_count: number;
+    overall_sentiment: string;
+    results: Record<string, any>;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/models/process-real-data`, {
+      method: 'POST',
+      headers: this.getHeaders(),
       body: JSON.stringify({ transcript }),
     });
 
-    // Transform backend response format to match frontend expectations
-    if (response.success && (response as any).analysis) {
-      console.log('API Service - Backend response:', response);
-      console.log('API Service - Analysis data:', (response as any).analysis);
-      return {
-        success: true,
-        data: (response as any).analysis, // Move analysis data to data field
-      };
-    }
-
-    return response;
-  },
-
-  // === REAL CALLS DATA FROM DATABASE ===
-  
-  /**
-   * Get calls from real database (no mock data)
-   * All calls come from actual audio uploads and OpenAI analysis
-   */
-  async getCalls(params?: {
-    skip?: number;
-    limit?: number;
-    sentiment?: string;
-    search?: string;
-  }): Promise<ApiResponse> {
-    const searchParams = new URLSearchParams();
-    if (params?.skip) searchParams.append('skip', params.skip.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.sentiment) searchParams.append('sentiment', params.sentiment);
-    if (params?.search) searchParams.append('search', params.search);
-
-    const queryString = searchParams.toString();
-    return apiCall(`/api/calls${queryString ? '?' + queryString : ''}`);
-  },
-
-  /**
-   * Get detailed call information with real analysis results
-   */
-  async getCallDetail(callId: number): Promise<ApiResponse> {
-    return apiCall(`/api/calls/${callId}`);
-  },
-
-  /**
-   * Get real dashboard analytics calculated from actual call data
-   * NO sample data - everything computed from real OpenAI analysis
-   */
-  async getDashboardAnalytics(): Promise<ApiResponse> {
-    return apiCall('/api/calls/analytics/dashboard');
-  },
-
-  // === REAL ACTION ITEMS FROM AI ANALYSIS ===
-  
-  /**
-   * Get action items generated by AI from real call transcripts
-   */
-  async getActionItems(params?: {
-    skip?: number;
-    limit?: number;
-    status?: string;
-    priority?: string;
-    call_id?: number;
-  }): Promise<ApiResponse> {
-    const searchParams = new URLSearchParams();
-    if (params?.skip) searchParams.append('skip', params.skip.toString());
-    if (params?.limit) searchParams.append('limit', params.limit.toString());
-    if (params?.status) searchParams.append('status', params.status);
-    if (params?.priority) searchParams.append('priority', params.priority);
-    if (params?.call_id) searchParams.append('call_id', params.call_id.toString());
-
-    const queryString = searchParams.toString();
-    return apiCall(`/api/action-items${queryString ? '?' + queryString : ''}`);
-  },
-
-  /**
-   * Get detailed action item with call context
-   */
-  async getActionItemDetail(actionItemId: number): Promise<ApiResponse> {
-    return apiCall(`/api/action-items/${actionItemId}`);
-  },
-
-  /**
-   * Update action item status
-   */
-  async updateActionItemStatus(actionItemId: number, status: string): Promise<ApiResponse> {
-    return apiCall(`/api/action-items/${actionItemId}/status?status=${status}`, {
-      method: 'PATCH',
-    });
-  },
-
-  /**
-   * Get action items analytics from real data
-   */
-  async getActionItemsAnalytics(): Promise<ApiResponse> {
-    return apiCall('/api/action-items/analytics/summary');
-  },
-
-  // === UTILITY FUNCTIONS ===
-  
-  /**
-   * Health check endpoint
-   */
-  async healthCheck(): Promise<ApiResponse> {
-    return apiCall('/api/health');
-  },
-
-  // === DEMO FUNCTIONS FOR DEVELOPMENT ===
-  demo: {
-    async processSampleCall(): Promise<ApiResponse> {
-      const sampleTranscript = `
-Hello, this is John from TechFlow Distribution. I'm calling about the recent issues we've been having with your new software platform. 
-
-Hi John, this is Sarah from VendorTech. What specific issues are you experiencing?
-
-Well, we've had several problems. First, the system has been really slow during peak hours. Our users are complaining that it takes 30 seconds just to load the dashboard. This is causing major productivity issues for our team.
-
-I understand that's frustrating. Let me look into the performance issues.
-
-Also, the pricing seems much higher than what we initially discussed. We were quoted $50 per user per month, but the invoice shows $75 per user. That's a 50% increase that we weren't prepared for.
-
-That doesn't sound right. Let me check with our billing department.
-
-And one more thing - the training documentation you provided is really confusing. Our team has been struggling to understand how to use the advanced features. We need better support materials.
-
-I apologize for these issues. Let me schedule a follow-up call to address each of these concerns properly.
-      `;
-
-      // Use the real API to process this sample transcript
-      return api.analyzeTranscript(sampleTranscript);
-    }
+    return this.handleResponse<APIResponse<any>>(response);
   }
-};
 
-// Auth API
-export const authAPI = {
-  async login(email: string, password: string) {
-    return apiCall('/auth/login', {
+  async getModelStatus(): Promise<APIResponse<{
+    overall_status: string;
+    models: Record<string, {
+      loaded: boolean;
+      model_type: string;
+    }>;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/models/model-status`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  // Real-time Recording
+  async startRecording(metadata?: Record<string, any>): Promise<APIResponse<{
+    session_id: string;
+    status: string;
+    started_at: string;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/recording/start-recording`, {
       method: 'POST',
-      body: JSON.stringify({ username: email, password }),
+      headers: this.getHeaders(),
+      body: JSON.stringify({ metadata }),
     });
-  },
 
-  async register(userData: any) {
-    return apiCall('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-  },
+    return this.handleResponse<APIResponse<any>>(response);
+  }
 
-  async getCurrentUser() {
-    const token = localStorage.getItem('token');
-    return apiCall('/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  },
-};
-
-// Calls API
-export const callsAPI = {
-  async getCalls(page = 1, limit = 10) {
-    return apiCall(`/calls?page=${page}&limit=${limit}`);
-  },
-
-  async getCall(id: string) {
-    return apiCall(`/calls/${id}`);
-  },
-
-  async createCall(callData: any) {
-    return apiCall('/calls', {
-      method: 'POST',
-      body: JSON.stringify(callData),
-    });
-  },
-
-  async processCall(transcript: string, metadata: any = {}) {
-    return apiCall('/calls/process', {
-      method: 'POST',
-      body: JSON.stringify({
-        transcript,
-        distributor_id: metadata.distributorId || 'dist-1',
-        vendor_id: metadata.vendorId || 'vendor-1',
-        seed_brief: metadata.seedBrief || 'Vendor-distributor call',
-        metadata,
-      }),
-    });
-  },
-
-  async analyzeCall(callId: string) {
-    return apiCall(`/calls/${callId}/analyze`, {
-      method: 'POST',
-    });
-  },
-};
-
-// Action Items API
-export const actionItemsAPI = {
-  async getActionItems(callId?: string) {
-    const url = callId ? `/action-items?call_id=${callId}` : '/action-items';
-    return apiCall(url);
-  },
-
-  async createActionItem(actionItem: any) {
-    return apiCall('/action-items', {
-      method: 'POST',
-      body: JSON.stringify(actionItem),
-    });
-  },
-
-  async updateActionItem(id: string, updates: any) {
-    return apiCall(`/action-items/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-  },
-
-  async deleteActionItem(id: string) {
-    return apiCall(`/action-items/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
-
-// Dashboard API
-export const dashboardAPI = {
-  async getMetrics() {
-    return apiCall('/dashboard/metrics');
-  },
-
-  async getSentimentTimeline() {
-    return apiCall('/dashboard/sentiment-timeline');
-  },
-
-  async getPainPointCategories() {
-    return apiCall('/dashboard/pain-point-categories');
-  },
-
-  async getRecentActivity() {
-    return apiCall('/dashboard/recent-activity');
-  },
-};
-
-// Demo/Test API calls for development
-export const demoAPI = {
-  async processSampleCall() {
-    const sampleTranscript = `
-Hello, this is John from TechFlow Distribution. I'm calling about the recent issues we've been having with your new software platform. 
-
-Hi John, this is Sarah from VendorTech. What specific issues are you experiencing?
-
-Well, we've had several problems. First, the system has been really slow during peak hours. Our users are complaining that it takes 30 seconds just to load the dashboard. This is causing major productivity issues for our team.
-
-I understand that's frustrating. Let me look into the performance issues.
-
-Also, the pricing seems much higher than what we initially discussed. We were quoted $50 per user per month, but the invoice shows $75 per user. That's a 50% increase that we weren't prepared for.
-
-That doesn't sound right. Let me check with our billing department.
-
-And one more thing - the training documentation you provided is really confusing. Our team has been struggling to understand how to use the advanced features. We need better support materials.
-
-I apologize for these issues. Let me schedule a follow-up call to address each of these concerns properly.
-    `;
-
-    return this.processCall(sampleTranscript, {
-      distributorId: 'dist-1',
-      vendorId: 'vendor-1',
-      seedBrief: 'Sample call about software platform issues',
-    });
-  },
-
-  async processCall(transcript: string, metadata: any) {
-    // Simulate API call processing
-    console.log('Processing call with transcript:', transcript.substring(0, 100) + '...');
-    console.log('Metadata:', metadata);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    return {
-      success: true,
-      data: {
-        call_id: `call_${Date.now()}`,
-        analysis: {
-          pain_points: [
-            {
-              id: 'pp1',
-              description: 'System performance issues during peak hours - 30 second load times',
-              category: 'TECHNICAL',
-              severity: 'HIGH',
-              confidence: 0.95,
-              text_segment: 'the system has been really slow during peak hours. Our users are complaining that it takes 30 seconds just to load the dashboard',
-              reasoning: 'Clear technical performance complaint with specific metrics'
-            },
-            {
-              id: 'pp2',
-              description: 'Unexpected 50% price increase from $50 to $75 per user',
-              category: 'PRICING',
-              severity: 'CRITICAL',
-              confidence: 0.98,
-              text_segment: 'We were quoted $50 per user per month, but the invoice shows $75 per user. That\'s a 50% increase',
-              reasoning: 'Significant pricing discrepancy causing customer concern'
-            },
-            {
-              id: 'pp3',
-              description: 'Inadequate training documentation causing user confusion',
-              category: 'SERVICE',
-              severity: 'MEDIUM',
-              confidence: 0.87,
-              text_segment: 'the training documentation you provided is really confusing. Our team has been struggling to understand',
-              reasoning: 'Support and documentation quality issues affecting user adoption'
-            }
-          ],
-          sentiment: {
-            overall_sentiment: 'NEGATIVE',
-            confidence: 0.89,
-            segments: [
-              { start_time: 0, end_time: 30, sentiment: 'NEUTRAL', confidence: 0.7 },
-              { start_time: 30, end_time: 120, sentiment: 'NEGATIVE', confidence: 0.95 },
-              { start_time: 120, end_time: 180, sentiment: 'NEGATIVE', confidence: 0.92 }
-            ]
-          },
-          action_items: [
-            {
-              id: 'ai1',
-              title: 'Investigate Performance Issues',
-              description: 'Analyze system performance during peak hours and implement optimizations',
-              category: 'RESEARCH',
-              priority: 'HIGH',
-              due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-              assigned_to: 'vendor'
-            },
-            {
-              id: 'ai2',
-              title: 'Resolve Billing Discrepancy',
-              description: 'Review pricing agreement and correct invoice from $75 to agreed $50 per user',
-              category: 'ESCALATION',
-              priority: 'URGENT',
-              due_date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-              assigned_to: 'vendor'
-            },
-            {
-              id: 'ai3',
-              title: 'Improve Training Materials',
-              description: 'Create clearer documentation and provide additional training session',
-              category: 'DOCUMENTATION',
-              priority: 'MEDIUM',
-              due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              assigned_to: 'vendor'
-            }
-          ],
-          solutions: [
-            {
-              title: 'Performance Optimization Package',
-              description: 'Implement caching and database optimizations to improve load times',
-              resource_type: 'TOOL',
-              difficulty: 'MEDIUM',
-              impact: 'HIGH',
-              similarity_score: 0.92
-            },
-            {
-              title: 'Pricing Agreement Review',
-              description: 'Schedule meeting with accounts team to review and correct pricing',
-              resource_type: 'PROCESS',
-              difficulty: 'LOW',
-              impact: 'HIGH',
-              similarity_score: 0.96
-            }
-          ]
-        },
-        message: 'Call analyzed successfully with OpenAI'
-      }
+  async uploadAudioChunk(sessionId: string, audioBlob: Blob): Promise<APIResponse<{
+    session_id: string;
+    text: string;
+    is_partial: boolean;
+    timestamp: number;
+    sentiment?: {
+      sentiment: string;
+      confidence: number;
+      emotions?: Record<string, number>;
+      start_time: number;
+      end_time: number;
+      text: string;
     };
-  }
-};
+  }>> {
+    const formData = new FormData();
+    formData.append('audio_chunk', audioBlob);
 
-// Export the main API object as default
-export default api;
+    const response = await fetch(`${this.baseURL}/api/recording/upload-chunk/${sessionId}`, {
+      method: 'POST',
+      headers: this.getFormHeaders(),
+      body: formData,
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  async stopRecording(sessionId: string): Promise<APIResponse<{
+    session_id: string;
+    call_id: string;
+    transcript: string;
+    duration: number;
+    segments_count: number;
+    segments: Array<{
+      start_time: number;
+      end_time: number;
+      text: string;
+      chunk_index: number;
+    }>;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/recording/stop-recording/${sessionId}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  async getRecordingStatus(sessionId: string): Promise<APIResponse<{
+    session_id: string;
+    status: string;
+    duration: number;
+    chunks_processed: number;
+    segments_count: number;
+    metadata: Record<string, any>;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/recording/recording-status/${sessionId}`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  async getActiveRecordings(): Promise<APIResponse<{
+    active_sessions: Array<{
+      session_id: string;
+      status: string;
+      duration: number;
+      chunks_processed: number;
+      segments_count: number;
+      metadata: Record<string, any>;
+    }>;
+    count: number;
+  }>> {
+    const response = await fetch(`${this.baseURL}/api/recording/active-recordings`, {
+      headers: this.getHeaders(),
+    });
+
+    return this.handleResponse<APIResponse<any>>(response);
+  }
+
+  // Get WebSocket URL for real-time recording
+  getRecordingWebSocketURL(sessionId: string): string {
+    const wsProtocol = this.baseURL.startsWith('https') ? 'wss' : 'ws';
+    const wsBaseURL = this.baseURL.replace('http://', '').replace('https://', '');
+    return `${wsProtocol}://${wsBaseURL}/api/recording/ws/recording/${sessionId}`;
+  }
+}
+
+// Export singleton instance
+export const apiService = new APIService();
+export default apiService;

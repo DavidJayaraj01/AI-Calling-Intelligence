@@ -4,166 +4,93 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Phone, AlertTriangle, CheckCircle, Users, Calendar, Play } from 'lucide-react';
+import { TrendingUp, Phone, AlertTriangle, CheckCircle, Users, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { SentimentLineChart, CategoryPieChart, StatusBarChart } from '../components/ui/Charts';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
-import { 
-  mockDashboardMetrics, 
-  mockPainPointCategoryData, 
-  mockSentimentTimelineData, 
-  mockActionItemStatusData,
-  getRecentActivity 
-} from '../data/mockData';
-import api from '../services/api';
+import { apiService, type DashboardMetrics } from '../services/api';
 import { Link } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
-  const [metrics, setMetrics] = useState(mockDashboardMetrics);
-  const [recentActivity, setRecentActivity] = useState(getRecentActivity());
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState('');
-  const [isGeneratingQBR, setIsGeneratingQBR] = useState(false);
-  const [timeFilter, setTimeFilter] = useState('This Month');
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load data on component mount
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  const handleTimeFilter = (filter: string) => {
-    setTimeFilter(filter);
-    setProcessingMessage(`📊 Loading ${filter.toLowerCase()} data...`);
-    
-    setTimeout(() => {
-      // Simulate data filtering
-      const multiplier = filter === 'This Month' ? 1 : filter === 'This Week' ? 0.7 : 0.3;
-      const filteredMetrics = {
-        ...mockDashboardMetrics,
-        totalCalls: Math.floor(mockDashboardMetrics.totalCalls * multiplier),
-        totalPainPoints: Math.floor(mockDashboardMetrics.totalPainPoints * multiplier),
-        totalActionItems: Math.floor(mockDashboardMetrics.totalActionItems * multiplier),
-        averageSentiment: mockDashboardMetrics.averageSentiment,
-      };
-      setMetrics(filteredMetrics);
-      setProcessingMessage(`✅ ${filter} data loaded successfully!`);
-      
-      setTimeout(() => setProcessingMessage(''), 3000);
-    }, 1500);
-  };
-
-  const handleGenerateQBR = async () => {
-    setIsGeneratingQBR(true);
-    setProcessingMessage('🚀 Generating QBR report with AI analysis...');
-    
-    try {
-      // Simulate QBR generation
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      setProcessingMessage('✅ QBR report generated successfully! Redirecting to QBR page...');
-      
-      setTimeout(() => {
-        window.location.href = '/qbr';
-      }, 2000);
-      
-    } catch (error) {
-      setProcessingMessage('❌ Failed to generate QBR report. Please try again.');
-    } finally {
-      setIsGeneratingQBR(false);
-    }
-  };
-
   const loadDashboardData = async () => {
     try {
-      // In a real app, you would load from API
-      // const response = await api.dashboard.getMetrics();
-      // if (response.success) {
-      //   setMetrics(response.data);
-      // }
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    }
-  };
-
-  const handleDemoCall = async () => {
-    setIsProcessing(true);
-    setProcessingMessage('Processing sample call with OpenAI...');
-    
-    try {
-      const response = await api.demo.processSampleCall();
-      
-      if (response.success) {
-        setProcessingMessage('✅ Call analyzed successfully! Pain points and action items generated.');
-        
-        // Update metrics to show new analysis
-        setMetrics(prev => ({
-          ...prev,
-          totalCalls: prev.totalCalls + 1,
-          totalPainPoints: prev.totalPainPoints + 3,
-          totalActionItems: prev.totalActionItems + 3,
-        }));
-
-        // Add to recent activity
-        const newActivity = {
-          id: `activity_${Date.now()}`,
-          type: 'call_analyzed',
-          title: 'AI Call Analysis Complete',
-          description: 'AI analyzed sample call and found 3 pain points',
-          timestamp: new Date(),
-          icon: '🤖'
-        };
-        
-        setRecentActivity(prev => [newActivity, ...prev.slice(0, 4)]);
-        
-        setTimeout(() => {
-          setProcessingMessage('');
-        }, 3000);
-      } else {
-        setProcessingMessage('❌ Error processing call: Failed to analyze');
-      }
-    } catch (error) {
-      setProcessingMessage('❌ Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getDashboardData();
+      setMetrics(data);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again.');
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
     }
   };
+
+  // Mock recent activity for now
+  const recentActivity = [
+    {
+      id: '1',
+      title: 'New call processed',
+      description: 'Call with Vendor ABC completed analysis',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30),
+      icon: '📞'
+    },
+    {
+      id: '2',
+      title: 'Action item completed',
+      description: 'Follow up with customer completed',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+      icon: '✅'
+    },
+    {
+      id: '3',
+      title: 'Pain point identified',
+      description: 'Technical issue flagged in recent call',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4),
+      icon: '⚠️'
+    }
+  ];
 
   // Stats cards data
-  const stats = [
+  const stats = metrics ? [
     {
-      title: 'Total Calls Analyzed',
-      value: metrics.totalCalls,
+      title: 'Total Calls',
+      value: metrics.total_calls,
       change: '+12%',
       changeType: 'positive' as const,
       icon: Phone,
-      description: 'Calls processed by AI'
     },
     {
-      title: 'Pain Points Identified',
-      value: metrics.totalPainPoints,
+      title: 'Pain Points',
+      value: metrics.total_pain_points,
       change: '-8%',
       changeType: 'positive' as const,
       icon: AlertTriangle,
-      description: 'Issues detected by OpenAI'
     },
     {
-      title: 'Action Items Generated',
-      value: metrics.totalActionItems,
+      title: 'Action Items',
+      value: metrics.total_action_items,
       change: '+23%',
       changeType: 'neutral' as const,
       icon: CheckCircle,
-      description: 'AI-generated follow-ups'
     },
     {
-      title: 'Avg. Sentiment Score',
-      value: metrics.averageSentiment.toFixed(1),
+      title: 'Avg. Sentiment',
+      value: metrics.average_sentiment.toFixed(1),
       change: '+0.3',
       changeType: 'positive' as const,
       icon: TrendingUp,
-      description: 'Overall call sentiment'
     },
-  ];
+  ] : [];
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -174,48 +101,74 @@ const Dashboard: React.FC = () => {
     }).format(date);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-900">AI Call Intelligence Dashboard</h1>
-          <p className="text-secondary-600">
-            Real-time insights from your vendor-distributor conversations powered by OpenAI
-          </p>
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      technical: '#ef4444',
+      pricing: '#f59e0b',
+      product: '#3b82f6',
+      service: '#10b981',
+      delivery: '#8b5cf6',
+      communication: '#06b6d4',
+      other: '#6b7280'
+    };
+    return colors[category] || '#6b7280';
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: '#f59e0b',
+      in_progress: '#3b82f6',
+      completed: '#10b981',
+      cancelled: '#6b7280',
+      overdue: '#ef4444'
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-4" />
+          <p className="text-secondary-600">Loading dashboard...</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <Button 
-            variant="outline" 
-            icon={<Play className="h-4 w-4" />}
-            onClick={handleDemoCall}
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Processing...' : 'Demo AI Analysis'}
-          </Button>
-          <Button 
-            variant="outline" 
-            icon={<Calendar className="h-4 w-4" />}
-            onClick={() => handleTimeFilter(timeFilter === 'This Month' ? 'This Week' : 'This Month')}
-          >
-            {timeFilter}
-          </Button>
-          <Button 
-            icon={<Users className="h-4 w-4" />}
-            onClick={handleGenerateQBR}
-            disabled={isGeneratingQBR}
-          >
-            {isGeneratingQBR ? 'Generating...' : 'Generate QBR'}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+          <p className="text-red-800 mb-4">{error}</p>
+          <Button onClick={loadDashboardData}>
+            Retry
           </Button>
         </div>
       </div>
+    );
+  }
 
-      {/* Processing Status */}
-      {processingMessage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-blue-800 font-medium">{processingMessage}</p>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-secondary-900">Dashboard</h1>
+          <p className="text-secondary-600">
+            Welcome back! Here's what's happening with your calls today.
+          </p>
         </div>
-      )}
+        <div className="flex space-x-3">
+          <Button variant="outline" icon={<Calendar className="h-4 w-4" />}>
+            This Month
+          </Button>
+          <Button icon={<Users className="h-4 w-4" />}>
+            Generate Report
+          </Button>
+        </div>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -229,9 +182,6 @@ const Dashboard: React.FC = () => {
                   </p>
                   <p className="text-2xl font-bold text-secondary-900">
                     {stat.value}
-                  </p>
-                  <p className="text-xs text-secondary-500 mt-1">
-                    {stat.description}
                   </p>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100">
@@ -259,39 +209,46 @@ const Dashboard: React.FC = () => {
         {/* Sentiment Timeline */}
         <Card>
           <CardHeader>
-            <CardTitle>AI Sentiment Analysis Timeline</CardTitle>
-            <p className="text-sm text-secondary-600 mt-1">
-              Real-time sentiment tracking powered by OpenAI's advanced language models
-            </p>
+            <CardTitle>Sentiment Timeline</CardTitle>
           </CardHeader>
           <CardContent>
-            <SentimentLineChart data={mockSentimentTimelineData} height={250} />
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-secondary-500">
-              <span className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                Positive sentiment trending up
-              </span>
-              <span className="flex items-center">
-                <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                AI confidence: 94%
-              </span>
-            </div>
+            {metrics?.sentiment_trend ? (
+              <SentimentLineChart 
+                data={metrics.sentiment_trend.map(item => ({
+                  timestamp: new Date(item.date),
+                  value: item.sentiment,
+                  label: new Date(item.date).toLocaleDateString()
+                }))} 
+                height={250} 
+              />
+            ) : (
+              <div className="flex items-center justify-center h-64 text-secondary-500">
+                No sentiment data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Pain Points by Category */}
         <Card>
           <CardHeader>
-            <CardTitle>AI-Detected Pain Point Categories</CardTitle>
-            <p className="text-sm text-secondary-600 mt-1">
-              Automated categorization using natural language processing
-            </p>
+            <CardTitle>Pain Points by Category</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryPieChart data={mockPainPointCategoryData} height={250} />
-            <div className="mt-4 text-xs text-secondary-500">
-              <p>Categories automatically identified by OpenAI analysis of call transcripts</p>
-            </div>
+            {metrics?.pain_points_by_category ? (
+              <CategoryPieChart 
+                data={Object.entries(metrics.pain_points_by_category).map(([key, value]) => ({ 
+                  label: key, 
+                  value,
+                  color: getCategoryColor(key)
+                }))} 
+                height={250} 
+              />
+            ) : (
+              <div className="flex items-center justify-center h-64 text-secondary-500">
+                No pain point data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -301,16 +258,23 @@ const Dashboard: React.FC = () => {
         {/* Action Items Status */}
         <Card>
           <CardHeader>
-            <CardTitle>AI-Generated Action Items</CardTitle>
-            <p className="text-sm text-secondary-600 mt-1">
-              Intelligent follow-up tasks created by OpenAI
-            </p>
+            <CardTitle>Action Items Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <StatusBarChart data={mockActionItemStatusData} height={200} />
-            <div className="mt-4 text-xs text-secondary-500">
-              <p>Automatically prioritized based on urgency and impact analysis</p>
-            </div>
+            {metrics?.action_items_by_status ? (
+              <StatusBarChart 
+                data={Object.entries(metrics.action_items_by_status).map(([key, value]) => ({ 
+                  label: key, 
+                  value,
+                  color: getStatusColor(key)
+                }))} 
+                height={200} 
+              />
+            ) : (
+              <div className="flex items-center justify-center h-48 text-secondary-500">
+                No action item data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -318,12 +282,7 @@ const Dashboard: React.FC = () => {
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent AI Analysis Activity</CardTitle>
-                <p className="text-sm text-secondary-600 mt-1">
-                  Latest AI-powered insights from your calls
-                </p>
-              </div>
+              <CardTitle>Recent Activity</CardTitle>
               <Link to="/calls">
                 <Button variant="outline" size="sm">
                   View All

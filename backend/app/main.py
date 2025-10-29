@@ -10,11 +10,9 @@ import time
 from loguru import logger
 import sys
 
-from app.core.config import settings, validate_gemini_key
+from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, audio  # Remove old imports
-from app.api import calls_real  # New real data endpoints
-from app.api import action_items_real  # Real action items from AI
+from app.api import auth, calls, action_items, health, model_test, notifications, recording
 
 # Configure logging
 logger.remove()
@@ -37,31 +35,32 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AI Call Intelligence API")
     
-    # Validate Gemini API key
-    try:
-        validate_gemini_key()
-        logger.info("Gemini API key validation successful")
-    except Exception as e:
-        logger.error(f"Gemini API key validation failed: {e}")
-        raise e
-    
     # Create database tables
     try:
-        # Skip database table creation for now to speed up startup
-        # Base.metadata.create_all(bind=engine)
-        logger.info("Database tables creation skipped for faster startup")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
     except Exception as e:
         logger.error(f"Error creating database tables: {e}")
     
-    # Initialize Gemini-based AI services
+    # Initialize AI models (in background)
     try:
         from app.services.pain_point_service import pain_point_extractor
         from app.services.solution_service import solution_matcher
-        from app.services.action_item_service import action_item_generator
         from app.services.sentiment_service import sentiment_analyzer
-        logger.info("Gemini-based AI services initialized successfully")
+        from app.services.speech_to_text_service import speech_to_text_service
+        from app.services.action_item_service import action_item_generator
+        logger.info("Full AI services initialized")
     except Exception as e:
-        logger.error(f"Error initializing AI services: {e}")
+        logger.warning(f"Failed to initialize full AI services: {e}")
+        try:
+            from app.services.minimal_pain_point_service import pain_point_extractor
+            from app.services.minimal_solution_service import solution_matcher
+            from app.services.minimal_sentiment_service import sentiment_analyzer
+            from app.services.minimal_speech_to_text_service import speech_to_text_service
+            from app.services.action_item_service import action_item_generator
+            logger.info("Minimal AI services initialized for development")
+        except Exception as e2:
+            logger.error(f"Error initializing minimal AI services: {e2}")
     
     yield
     
@@ -124,20 +123,16 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(calls_real.router, prefix="/api/calls", tags=["Calls - Real Data"])  # Use real data endpoints
-app.include_router(action_items_real.router, prefix="/api/action-items", tags=["Action Items - AI Generated"])  # Real AI action items
-app.include_router(audio.router, prefix="/api/audio", tags=["Audio Processing - OpenAI"])
+app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
+app.include_router(action_items.router, prefix="/api/action-items", tags=["Action Items"])
+app.include_router(health.router, prefix="/api/health", tags=["Health Checks"])
+app.include_router(model_test.router, prefix="/api/models", tags=["Model Testing"])
+app.include_router(notifications.router, tags=["Notifications"])
+app.include_router(recording.router, prefix="/api/recording", tags=["Real-time Recording"])
 
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint to verify API is working"""
-    return {
-        "success": True,
-        "message": "AI Call Intelligence API is running",
-        "version": settings.VERSION,
-        "gemini_configured": bool(settings.GEMINI_API_KEY),
-        "data_source": "real_openai_analysis"
-    }
+# Import and include QBR router
+from app.api import qbr
+app.include_router(qbr.router, prefix="/api/qbr", tags=["QBR Reports"])
 
 # Health check endpoint
 @app.get("/health")

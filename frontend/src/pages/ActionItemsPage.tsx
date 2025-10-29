@@ -1,74 +1,66 @@
 /**
  * Action Items Page
- * Manage all AI-generated action items with intelligent prioritization and tracking
+ * Manage all action items with filtering, editing, and status updates
  */
 
-import React, { useState } from 'react';
-import { CheckSquare, Search, Filter, Plus, Calendar, User, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckSquare, Search, Filter, Plus, Calendar, User, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import Table from '../components/ui/Table';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Badge from '../components/ui/Badge';
-import { mockActionItems, mockUsers } from '../data/mockData';
-import type { ActionItem, TableColumn } from '../types';
-import { Priority, ActionItemStatus, ActionItemCategory } from '../types';
+import { apiService, type ActionItem, type PaginatedResponse } from '../services/api';
 import { Link } from 'react-router-dom';
 
 const ActionItemsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [filteredItems, setFilteredItems] = useState(mockActionItems);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newItem, setNewItem] = useState({
-    title: '',
-    description: '',
-    priority: Priority.MEDIUM,
-    assigneeId: mockUsers[0].id,
-    dueDate: '',
-    category: ActionItemCategory.OTHER
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<ActionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    hasNext: false,
+    hasPrev: false
   });
 
-  const handleCreateManualItem = () => {
-    if (!newItem.title.trim() || !newItem.description.trim()) {
-      alert('Please fill in both title and description');
-      return;
+  // Load action items from API
+  useEffect(() => {
+    loadActionItems();
+  }, [pagination.page, statusFilter]);
+
+  const loadActionItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getActionItems({
+        page: pagination.page,
+        limit: pagination.limit,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      });
+      
+      setActionItems(response.items);
+      setFilteredItems(response.items);
+      setPagination(prev => ({
+        ...prev,
+        total: response.total,
+        hasNext: response.has_next,
+        hasPrev: response.has_prev
+      }));
+    } catch (err) {
+      console.error('Error loading action items:', err);
+      setError('Failed to load action items. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    const createdItem: ActionItem = {
-      id: `manual-${Date.now()}`,
-      title: newItem.title,
-      description: newItem.description,
-      priority: newItem.priority,
-      status: ActionItemStatus.PENDING,
-      assigneeId: newItem.assigneeId,
-      assignee: mockUsers.find(u => u.id === newItem.assigneeId) || mockUsers[0],
-      callId: mockActionItems[0].callId,
-      call: mockActionItems[0].call,
-      category: newItem.category,
-      dueDate: newItem.dueDate ? new Date(newItem.dueDate) : undefined,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    setFilteredItems(prev => [createdItem, ...prev]);
-    
-    // Reset form
-    setNewItem({
-      title: '',
-      description: '',
-      priority: Priority.MEDIUM,
-      assigneeId: mockUsers[0].id,
-      dueDate: '',
-      category: ActionItemCategory.OTHER
-    });
-    
-    setShowCreateForm(false);
-    alert('✅ Manual action item created successfully!');
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
@@ -95,125 +87,34 @@ const ActionItemsPage: React.FC = () => {
     }
   };
 
-  const isOverdue = (dueDate: Date | undefined, status: string) => {
+  const isOverdue = (dueDate: string | undefined, status: string) => {
     if (!dueDate || status === 'completed') return false;
-    return new Date() > dueDate;
+    return new Date() > new Date(dueDate);
   };
 
-  const handleGenerateActionItems = async () => {
-    setIsGenerating(true);
-    try {
-      // Simulate AI generation of new action items
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create properly typed new action items
-      const newItems: ActionItem[] = [
-        {
-          id: `ai-${Date.now()}-1`,
-          title: 'Follow up on pricing concerns',
-          description: 'AI detected pricing objections in recent call - schedule follow-up meeting',
-          priority: 'high' as Priority,
-          status: ActionItemStatus.PENDING,
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          assigneeId: mockUsers[0].id,
-          assignee: mockUsers[0],
-          callId: mockActionItems[0].callId,
-          call: mockActionItems[0].call,
-          category: 'follow_up' as ActionItemCategory,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: `ai-${Date.now()}-2`,
-          title: 'Review product availability',
-          description: 'OpenAI analysis found inventory concerns - verify stock levels',
-          priority: 'medium' as Priority,
-          status: ActionItemStatus.PENDING,
-          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-          assigneeId: mockUsers[1].id,
-          assignee: mockUsers[1],
-          callId: mockActionItems[1].callId,
-          call: mockActionItems[1].call,
-          category: 'research' as ActionItemCategory,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-      
-      const updatedItems = [...newItems, ...mockActionItems];
-      setFilteredItems(updatedItems);
-      
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleToggleStatus = (itemId: string) => {
-    const updatedItems = filteredItems.map(item => {
-      if (item.id === itemId) {
-        const newStatus = item.status === ActionItemStatus.COMPLETED 
-          ? ActionItemStatus.PENDING 
-          : ActionItemStatus.COMPLETED;
-        return { 
-          ...item, 
-          status: newStatus,
-          completedAt: newStatus === ActionItemStatus.COMPLETED ? new Date() : undefined
-        };
-      }
-      return item;
-    });
-    setFilteredItems(updatedItems);
-  };
-
-  const columns: TableColumn<ActionItem>[] = [
+  const columns = [
     {
-      key: 'title',
+      key: 'description',
       label: 'Task',
       render: (value: string, item: ActionItem) => (
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => handleToggleStatus(item.id)}
-            className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${
-              item.status === ActionItemStatus.COMPLETED
-                ? 'bg-success-500 border-success-500 text-white'
-                : 'border-secondary-300 hover:border-primary-400'
-            }`}
-          >
-            {item.status === ActionItemStatus.COMPLETED && <CheckSquare className="h-3 w-3" />}
-          </button>
-          <div className={item.status === ActionItemStatus.COMPLETED ? 'opacity-60' : ''}>
-            <p className="font-medium text-secondary-900">{value}</p>
-            <p className="text-sm text-secondary-500">{item.description}</p>
-          </div>
+        <div>
+          <p className="font-medium text-secondary-900">{value}</p>
+          <p className="text-sm text-secondary-500">Action Item #{item.action_id}</p>
         </div>
       ),
     },
     {
-      key: 'assigneeId',
+      key: 'owner_id',
       label: 'Assignee',
-      render: (value: string) => {
-        const assignee = mockUsers.find(u => u.id === value);
-        return assignee ? (
-          <div className="flex items-center space-x-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100">
-              <span className="text-xs font-medium text-primary-700">
-                {assignee.firstName[0]}{assignee.lastName[0]}
-              </span>
-            </div>
-            <span className="text-sm">{assignee.firstName} {assignee.lastName}</span>
+      render: (value: number | undefined) => (
+        <div className="flex items-center space-x-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100">
+            <span className="text-xs font-medium text-primary-700">
+              {value ? value.toString().substring(0, 2) : 'N/A'}
+            </span>
           </div>
-        ) : (
-          <span className="text-sm text-secondary-500">Unassigned</span>
-        );
-      },
-    },
-    {
-      key: 'priority',
-      label: 'Priority',
-      render: (value: string) => (
-        <Badge variant={getPriorityColor(value)} size="sm">
-          {value}
-        </Badge>
+          <span className="text-sm">{value ? `User ${value}` : 'Unassigned'}</span>
+        </div>
       ),
     },
     {
@@ -224,16 +125,16 @@ const ActionItemsPage: React.FC = () => {
           <Badge variant={getStatusColor(value)} size="sm">
             {value.replace('_', ' ')}
           </Badge>
-          {isOverdue(item.dueDate, value) && (
+          {isOverdue(item.due_date, value) && (
             <AlertCircle className="h-4 w-4 text-error-500" />
           )}
         </div>
       ),
     },
     {
-      key: 'dueDate',
+      key: 'due_date',
       label: 'Due Date',
-      render: (value: Date | undefined, item: ActionItem) => {
+      render: (value: string | undefined, item: ActionItem) => {
         if (!value) return <span className="text-secondary-400">No due date</span>;
         const overdue = isOverdue(value, item.status);
         return (
@@ -244,21 +145,29 @@ const ActionItemsPage: React.FC = () => {
       },
     },
     {
-      key: 'category',
-      label: 'Category',
-      render: (value: string) => (
-        <Badge variant="secondary" size="sm">
-          {value.replace('_', ' ')}
-        </Badge>
-      ),
-    },
-    {
-      key: 'callId',
+      key: 'call_id',
       label: 'Related Call',
-      render: (value: string) => (
+      render: (value: number) => (
         <Link to={`/calls/${value}`} className="text-primary-600 hover:text-primary-700 text-sm">
           View Call
         </Link>
+      ),
+    },
+    {
+      key: 'action_id',
+      label: 'Actions',
+      render: (value: number, item: ActionItem) => (
+        <div className="flex space-x-2">
+          {item.status !== 'completed' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleCompleteItem(value.toString())}
+            >
+              Complete
+            </Button>
+          )}
+        </div>
       ),
     },
   ];
@@ -270,65 +179,61 @@ const ActionItemsPage: React.FC = () => {
 
   const handleStatusFilter = (status: string) => {
     setStatusFilter(status);
-    applyFilters(searchTerm, status);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when filtering
   };
 
   const applyFilters = (search: string, status: string) => {
-    let filtered = mockActionItems;
+    let filtered = actionItems;
 
     if (search) {
       filtered = filtered.filter(item =>
-        item.title.toLowerCase().includes(search.toLowerCase()) ||
         item.description.toLowerCase().includes(search.toLowerCase())
       );
-    }
-
-    if (status !== 'all') {
-      filtered = filtered.filter(item => item.status === status);
     }
 
     setFilteredItems(filtered);
   };
 
-  // Calculate statistics from current filtered items
+  const handleCompleteItem = async (itemId: string) => {
+    try {
+      await apiService.completeActionItem(itemId);
+      await loadActionItems(); // Refresh the list
+    } catch (err) {
+      console.error('Error completing action item:', err);
+      setError('Failed to complete action item. Please try again.');
+    }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  // Calculate statistics
   const stats = {
-    total: filteredItems.length,
-    pending: filteredItems.filter(item => item.status === ActionItemStatus.PENDING).length,
-    inProgress: filteredItems.filter(item => item.status === ActionItemStatus.IN_PROGRESS).length,
-    completed: filteredItems.filter(item => item.status === ActionItemStatus.COMPLETED).length,
-    overdue: filteredItems.filter(item => 
-      item.status !== ActionItemStatus.COMPLETED && 
-      item.dueDate && 
-      new Date() > item.dueDate
+    total: pagination.total,
+    pending: actionItems.filter(item => item.status === 'pending').length,
+    inProgress: actionItems.filter(item => item.status === 'in_progress').length,
+    completed: actionItems.filter(item => item.status === 'completed').length,
+    overdue: actionItems.filter(item => 
+      item.status !== 'completed' && 
+      item.due_date && 
+      new Date() > new Date(item.due_date)
     ).length,
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-secondary-900">AI-Generated Action Items</h1>
+          <h1 className="text-2xl font-bold text-secondary-900">Action Items</h1>
           <p className="text-secondary-600">
-            Intelligent follow-up tasks automatically created from call analysis using OpenAI
+            Manage and track all action items across calls
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            icon={<AlertCircle className="h-4 w-4" />}
-            onClick={handleGenerateActionItems}
-            disabled={isGenerating}
-          >
-            {isGenerating ? 'Generating...' : 'Generate AI Items'}
-          </Button>
-          <Button 
-            icon={<Plus className="h-4 w-4" />}
-            onClick={() => setShowCreateForm(!showCreateForm)}
-          >
-            {showCreateForm ? 'Cancel' : 'Create Manual Item'}
-          </Button>
-        </div>
+        <Button icon={<Plus className="h-4 w-4" />}>
+          New Action Item
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -394,119 +299,6 @@ const ActionItemsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Create Manual Item Form */}
-      {showCreateForm && (
-        <Card className="border-primary-200 bg-primary-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-primary-900">
-              <Plus className="h-5 w-5" />
-              Create Manual Action Item
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Title *
-                </label>
-                <Input
-                  value={newItem.title}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Enter action item title"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Description *
-                </label>
-                <textarea
-                  value={newItem.description}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter detailed description"
-                  className="w-full h-24 p-3 border border-secondary-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Priority
-                </label>
-                <select
-                  value={newItem.priority}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, priority: e.target.value as Priority }))}
-                  className="w-full p-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  <option value={Priority.LOW}>Low</option>
-                  <option value={Priority.MEDIUM}>Medium</option>
-                  <option value={Priority.HIGH}>High</option>
-                  <option value={Priority.URGENT}>Urgent</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Assignee
-                </label>
-                <select
-                  value={newItem.assigneeId}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, assigneeId: e.target.value }))}
-                  className="w-full p-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  {mockUsers.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Due Date (Optional)
-                </label>
-                <Input
-                  type="date"
-                  value={newItem.dueDate}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, dueDate: e.target.value }))}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-1">
-                  Category
-                </label>
-                <select
-                  value={newItem.category}
-                  onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value as ActionItemCategory }))}
-                  className="w-full p-3 border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  <option value={ActionItemCategory.FOLLOW_UP}>Follow Up</option>
-                  <option value={ActionItemCategory.RESEARCH}>Research</option>
-                  <option value={ActionItemCategory.DOCUMENTATION}>Documentation</option>
-                  <option value={ActionItemCategory.TRAINING}>Training</option>
-                  <option value={ActionItemCategory.ESCALATION}>Escalation</option>
-                  <option value={ActionItemCategory.COMMUNICATION}>Communication</option>
-                  <option value={ActionItemCategory.OTHER}>Other</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2 pt-4 border-t border-primary-200">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowCreateForm(false)}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleCreateManualItem}>
-                Create Action Item
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Action Items Table */}
       <Card>
         <CardHeader>
@@ -540,11 +332,60 @@ const ActionItemsPage: React.FC = () => {
             </div>
           </div>
 
-          <Table
-            data={filteredItems}
-            columns={columns}
-            emptyMessage="No action items found"
-          />
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <span className="text-red-800">{error}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={loadActionItems}
+                className="ml-auto"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+              <span className="ml-2 text-secondary-600">Loading action items...</span>
+            </div>
+          ) : (
+            <>
+              <Table
+                data={filteredItems}
+                columns={columns}
+                emptyMessage="No action items found"
+              />
+              
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-secondary-600">
+                  Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} action items
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={!pagination.hasPrev}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={!pagination.hasNext}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -561,29 +402,26 @@ const ActionItemsPage: React.FC = () => {
               </p>
             ) : (
               <div className="space-y-3">
-                {mockActionItems
+                {actionItems
                   .filter(item => 
                     item.status !== 'completed' && 
-                    item.dueDate && 
-                    new Date() > item.dueDate
+                    item.due_date && 
+                    new Date() > new Date(item.due_date)
                   )
                   .slice(0, 3)
-                  .map((item) => {
-                    const assignee = mockUsers.find(u => u.id === item.assigneeId);
-                    return (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-error-50 rounded-lg">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-error-900">{item.title}</p>
-                          <p className="text-xs text-error-600">
-                            Assigned to {assignee?.firstName} {assignee?.lastName}
-                          </p>
-                        </div>
-                        <Badge variant="error" size="sm">
-                          {item.dueDate && Math.ceil((new Date().getTime() - item.dueDate.getTime()) / (1000 * 60 * 60 * 24))} days
-                        </Badge>
+                  .map((item) => (
+                    <div key={item.action_id} className="flex items-center justify-between p-3 bg-error-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-error-900">{item.description}</p>
+                        <p className="text-xs text-error-600">
+                          Assigned to {item.owner_id ? `User ${item.owner_id}` : 'Unassigned'}
+                        </p>
                       </div>
-                    );
-                  })}
+                      <Badge variant="error" size="sm">
+                        {item.due_date && Math.ceil((new Date().getTime() - new Date(item.due_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                      </Badge>
+                    </div>
+                  ))}
               </div>
             )}
           </CardContent>
@@ -595,25 +433,22 @@ const ActionItemsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockActionItems
+              {actionItems
                 .filter(item => item.status === 'completed')
                 .slice(0, 3)
-                .map((item) => {
-                  const assignee = mockUsers.find(u => u.id === item.assigneeId);
-                  return (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-success-50 rounded-lg">
+                .map((item) => (
+                    <div key={item.action_id} className="flex items-center justify-between p-3 bg-success-50 rounded-lg">
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-success-900">{item.title}</p>
+                        <p className="text-sm font-medium text-success-900">{item.description}</p>
                         <p className="text-xs text-success-600">
-                          Completed by {assignee?.firstName} {assignee?.lastName}
+                          Completed by {item.owner_id ? `User ${item.owner_id}` : 'Unknown'}
                         </p>
                       </div>
-                      <Badge variant="success" size="sm">
-                        ✓ Done
-                      </Badge>
-                    </div>
-                  );
-                })}
+                    <Badge variant="success" size="sm">
+                      ✓ Done
+                    </Badge>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>

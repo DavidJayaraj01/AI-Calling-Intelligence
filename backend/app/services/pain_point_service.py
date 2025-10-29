@@ -1,87 +1,241 @@
 """
-Pain Point Extraction Service using Google Gemini API
+Pain Point Extraction Service using RoBERTa model
 """
-import google.generativeai as genai
+import asyncio
+from typing import List, Dict, Any, Tuple
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+import torch
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import re
 from loguru import logger
 from app.core.config import settings
-import json
-from typing import List, Dict, Any
+from app.models import PainPointCategory, SeverityLevel
 
 class PainPointExtractor:
     def __init__(self):
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        logger.info("Pain point extraction service initialized with Gemini API")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = None
+        self.tokenizer = None
+        self.embedding_model = None
+        self._load_models()
 
-    def extract_pain_points(self, transcript: str, call_context: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def _load_models(self):
+        """Load local RoBERTa and sentence transformer models"""
         try:
-            prompt = f"""You are a business analyst expert. Analyze this call transcript and identify pain points. 
-
-Return ONLY a JSON array with this exact format:
-[
-  {{
-    "description": "Clear description of the pain point",
-    "severity": "low|medium|high|critical",
-    "category": "technical|business|communication|other",
-    "impact": "Description of business impact"
-  }}
-]
-
-Transcript: {transcript}"""
-            
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.3,
-                    max_output_tokens=2000,
-                )
+            # Load local fine-tuned RoBERTa model for pain point detection
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                settings.ROBERTA_MODEL,
+                local_files_only=True
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                settings.ROBERTA_MODEL,
+                local_files_only=True
             )
             
-            content = response.text
-            try:
-                json_start = content.find('[')
-                json_end = content.rfind(']') + 1
-                if json_start >= 0 and json_end > json_start:
-                    pain_points_data = json.loads(content[json_start:json_end])
-                else:
-                    pain_points_data = []
-            except:
-                pain_points_data = []
+            # Load local sentence transformer for embeddings
+            self.embedding_model = SentenceTransformer(settings.VECTOR_MODEL, device=self.device)
             
-            pain_points = []
-            for i, pain_point in enumerate(pain_points_data):
-                enhanced_pain_point = {
-                    'id': f'pain_point_{i+1}',
-                    'description': pain_point.get('description', ''),
-                    'category': pain_point.get('category', 'OTHER').upper(),
-                    'severity': pain_point.get('severity', 'MEDIUM').upper(),
-                    'confidence': 0.8,
-                    'text_segment': pain_point.get('text_segment', ''),
-                    'reasoning': pain_point.get('reasoning', ''),
-                    'is_resolved': False
+            logger.info(f"Pain point extraction models loaded successfully from: {settings.ROBERTA_MODEL}")
+            logger.info(f"Vector embedding model loaded from: {settings.VECTOR_MODEL}")
+        except Exception as e:
+            logger.error(f"Error loading pain point models: {e}")
+            logger.error(f"RoBERTa model path: {settings.ROBERTA_MODEL}")
+            logger.error(f"Vector model path: {settings.VECTOR_MODEL}")
+            # Set to None for fallback behavior
+            self.model = None
+            self.tokenizer = None
+            self.embedding_model = None
+
+    def _preprocess_text(self, text: str) -> List[str]:
+        """Split transcript into sentences for analysis"""
+        # Split by sentences and clean
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+        return sentences
+
+    def _classify_pain_point_category(self, text: str) -> PainPointCategory:
+        """Classify pain point into categories using keyword matching and context"""
+        text_lower = text.lower()
+        
+        # Technical keywords
+        technical_keywords = ['bug', 'error', 'crash', 'slow', 'performance', 'integration', 'api', 'system']
+        if any(keyword in text_lower for keyword in technical_keywords):
+            return PainPointCategory.TECHNICAL
+        
+        # Pricing keywords
+        pricing_keywords = ['price', 'cost', 'expensive', 'billing', 'payment', 'budget']
+        if any(keyword in text_lower for keyword in pricing_keywords):
+            return PainPointCategory.PRICING
+        
+        # Product keywords
+        product_keywords = ['feature', 'functionality', 'usability', 'interface', 'design']
+        if any(keyword in text_lower for keyword in product_keywords):
+            return PainPointCategory.PRODUCT
+        
+        # Service keywords
+        service_keywords = ['support', 'help', 'assistance', 'response', 'service']
+        if any(keyword in text_lower for keyword in service_keywords):
+            return PainPointCategory.SERVICE
+        
+        # Delivery keywords
+        delivery_keywords = ['delivery', 'shipping', 'timeline', 'delay', 'schedule']
+        if any(keyword in text_lower for keyword in delivery_keywords):
+            return PainPointCategory.DELIVERY
+        
+        # Communication keywords
+        communication_keywords = ['communication', 'unclear', 'confusing', 'explain']
+        if any(keyword in text_lower for keyword in communication_keywords):
+            return PainPointCategory.COMMUNICATION
+        
+        return PainPointCategory.OTHER
+
+    def _determine_severity(self, text: str, emotion_scores: Dict[str, float]) -> SeverityLevel:
+        """Determine severity based on emotion scores and keywords"""
+        text_lower = text.lower()
+        
+        # Critical keywords
+        critical_keywords = ['critical', 'urgent', 'emergency', 'down', 'broken', 'failed']
+        if any(keyword in text_lower for keyword in critical_keywords):
+            return SeverityLevel.CRITICAL
+        
+        # High severity keywords
+        high_keywords = ['major', 'serious', 'important', 'significant', 'problem']
+        if any(keyword in text_lower for keyword in high_keywords):
+            return SeverityLevel.HIGH
+        
+        # Check emotion scores
+        negative_emotions = ['anger', 'fear', 'sadness']
+        total_negative = sum(emotion_scores.get(emotion, 0) for emotion in negative_emotions)
+        
+        if total_negative > 0.7:
+            return SeverityLevel.HIGH
+        elif total_negative > 0.4:
+            return SeverityLevel.MEDIUM
+        else:
+            return SeverityLevel.LOW
+
+    def _fallback_pain_point_extraction(self, sentences: List[str], call_id: str) -> List[Dict[str, Any]]:
+        """Fallback pain point extraction using keyword-based approach"""
+        pain_points = []
+        
+        pain_keywords = [
+            'problem', 'issue', 'difficulty', 'trouble', 'concern', 'complaint',
+            'frustrated', 'disappointed', 'unhappy', 'struggling', 'challenge',
+            'error', 'bug', 'failure', 'broken', 'not working', 'can\'t', 'cannot'
+        ]
+        
+        for i, sentence in enumerate(sentences):
+            sentence_lower = sentence.lower()
+            found_keywords = [kw for kw in pain_keywords if kw in sentence_lower]
+            
+            if found_keywords:
+                pain_point = {
+                    "description": sentence,
+                    "category": PainPointCategory.TECHNICAL.value,  # Default category
+                    "severity": SeverityLevel.MEDIUM.value,  # Default severity
+                    "confidence": 0.6,  # Lower confidence for fallback
+                    "keywords": found_keywords,
+                    "position": i,
+                    "vector_embedding": None,
+                    "call_id": call_id
                 }
-                pain_points.append(enhanced_pain_point)
+                pain_points.append(pain_point)
+        
+        return pain_points
+
+    async def extract_pain_points(self, transcript: str, call_id: str) -> List[Dict[str, Any]]:
+        """
+        Extract pain points from call transcript
+        
+        Args:
+            transcript: Call transcript text
+            call_id: ID of the call
             
+        Returns:
+            List of pain points with metadata
+        """
+        try:
+            sentences = self._preprocess_text(transcript)
+            pain_points = []
+            
+            # If models are not loaded, use fallback analysis
+            if self.model is None or self.tokenizer is None:
+                return self._fallback_pain_point_extraction(sentences, call_id)
+            
+            # Analyze each sentence for pain points
+            for i, sentence in enumerate(sentences):
+                # Use RoBERTa for emotion analysis
+                inputs = self.tokenizer(sentence, return_tensors="pt", truncation=True, padding=True)
+                
+                with torch.no_grad():
+                    outputs = self.model(**inputs)
+                    probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+                    emotion_scores = probabilities[0].cpu().numpy()
+                
+                # Convert to emotion dictionary (simplified mapping)
+                emotion_labels = ['anger', 'fear', 'joy', 'love', 'sadness', 'surprise']
+                emotion_dict = {label: float(score) for label, score in zip(emotion_labels, emotion_scores)}
+                
+                # Identify potential pain points based on negative emotions and keywords
+                pain_keywords = [
+                    'problem', 'issue', 'difficulty', 'trouble', 'concern', 'complaint',
+                    'frustrated', 'disappointed', 'unhappy', 'struggling', 'challenge',
+                    'error', 'bug', 'failure', 'broken', 'not working'
+                ]
+                
+                has_pain_keywords = any(keyword in sentence.lower() for keyword in pain_keywords)
+                has_negative_emotion = (emotion_dict.get('anger', 0) > 0.3 or 
+                                      emotion_dict.get('sadness', 0) > 0.3 or
+                                      emotion_dict.get('fear', 0) > 0.3)
+                
+                if has_pain_keywords or has_negative_emotion:
+                    # Generate embedding for the pain point
+                    if self.embedding_model:
+                        embedding = self.embedding_model.encode(sentence)
+                    else:
+                        embedding = None
+                    
+                    # Classify category and severity
+                    category = self._classify_pain_point_category(sentence)
+                    severity = self._determine_severity(sentence, emotion_dict)
+                    
+                    # Calculate confidence score
+                    confidence = max(emotion_dict.get('anger', 0), 
+                                   emotion_dict.get('sadness', 0), 
+                                   emotion_dict.get('fear', 0))
+                    if has_pain_keywords:
+                        confidence = min(confidence + 0.3, 1.0)
+                    
+                    pain_point = {
+                        "description": sentence.strip(),
+                        "category": category.value,
+                        "severity": severity.value,
+                        "confidence": float(confidence),
+                        "vector_embedding": embedding.tolist() if embedding is not None else None,
+                        "start_time": i * 10,  # Approximate timing (10 seconds per sentence)
+                        "end_time": (i + 1) * 10,
+                        "emotion_scores": emotion_dict,
+                        "call_id": call_id
+                    }
+                    
+                    pain_points.append(pain_point)
+            
+            logger.info(f"Extracted {len(pain_points)} pain points from call {call_id}")
             return pain_points
+            
         except Exception as e:
             logger.error(f"Error extracting pain points: {e}")
-            return []
+            raise
 
-    def get_pain_point_embedding(self, text: str) -> List[float]:
+    async def get_pain_point_embedding(self, text: str) -> List[float]:
+        """Generate embedding for a pain point text"""
         try:
-            # Note: Gemini doesn't have embedding API like OpenAI
-            # For production, you would use Google's embedding models
-            # For now, returning a placeholder embedding
-            logger.warning("Embedding functionality not implemented with Gemini API")
-            # Return a simple hash-based pseudo-embedding for demo purposes
-            import hashlib
-            hash_obj = hashlib.md5(text.encode())
-            hash_hex = hash_obj.hexdigest()
-            # Convert hex to list of floats (normalized)
-            embedding = [int(hash_hex[i:i+2], 16) / 255.0 for i in range(0, min(32, len(hash_hex)), 2)]
-            return embedding[:16]  # Return 16-dimensional vector
+            embedding = self.embedding_model.encode(text)
+            return embedding.tolist()
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
-            return []
+            raise
 
+# Global instance
 pain_point_extractor = PainPointExtractor()

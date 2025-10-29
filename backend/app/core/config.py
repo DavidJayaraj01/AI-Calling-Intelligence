@@ -2,12 +2,12 @@
 Core configuration for the AI Call Intelligence Backend
 """
 from pydantic_settings import BaseSettings
-from typing import List, Union
+from typing import List
 import os
 from pathlib import Path
 
 # Get the backend directory path
-backend_dir = Path(__file__).resolve().parent.parent
+backend_dir = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     # API Configuration
@@ -18,52 +18,49 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     
     # Database Configuration - PostgreSQL
-    DATABASE_URL: str = "postgresql://db:t5KGZJ3OZUfpUtUaUgADVez06AWKcPTn@dpg-d3bjmni4d50c73bs649g-a.oregon-postgres.render.com/jerwindb"
-    POSTGRES_USER: str = "db"
-    POSTGRES_PASSWORD: str = "t5KGZJ3OZUfpUtUaUgADVez06AWKcPTn"
-    POSTGRES_DB: str = "jerwindb"
-    POSTGRES_HOST: str = "dpg-d3bjmni4d50c73bs649g-a.oregon-postgres.render.com"
+    DATABASE_URL: str = "postgresql://klassy:yWQe2PJ6E0SWeN7mBYrz5OsYwMdq2wWB@dpg-d3betrjipnbc73fqjag0-a.singapore-postgres.render.com/daviddb_e0aw"
+    POSTGRES_USER: str = "klassy"
+    POSTGRES_PASSWORD: str = "yWQe2PJ6E0SWeN7mBYrz5OsYwMdq2wWB"
+    POSTGRES_DB: str = "daviddb_e0aw"
+    POSTGRES_HOST: str = "dpg-d3betrjipnbc73fqjag0-a.singapore-postgres.render.com"
     POSTGRES_PORT: int = 5432
     
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379"
     
-    # Gemini Configuration
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = "gemini-2.5-flash"
-    GEMINI_PRO_MODEL: str = "gemini-2.5-pro"
+    # JWT Configuration
+    SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # File Upload Configuration
-    MAX_UPLOAD_SIZE: int = 25 * 1024 * 1024  # 25MB for audio files
-    ALLOWED_AUDIO_EXTENSIONS: List[str] = [".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm"]
-    UPLOAD_DIR: str = str(backend_dir / "uploads")
+    # AI/ML Model Configuration
+    OPENAI_API_KEY: str = "your-openai-api-key-here"
+    HUGGINGFACE_API_TOKEN: str = "your-huggingface-token-here"
     
-    # CORS Configuration - Using property to avoid pydantic parsing issues
-    @property
-    def ALLOWED_ORIGINS(self) -> List[str]:
-        # Check if environment variable is set
-        env_origins = os.getenv("ALLOWED_ORIGINS")
-        if env_origins:
-            if env_origins == "*":
-                return ["*"]
-            else:
-                # Split by comma and strip whitespace
-                return [origin.strip() for origin in env_origins.split(",")]
-        
-        # Default origins for development and production
-        return [
-            "http://localhost:3000",
-            "http://localhost:5173", 
-            "http://localhost:5174",
-            "http://localhost:5175",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:5174",
-            "http://127.0.0.1:5175",
-            "https://ai-calling-intelligence-1.onrender.com",
-            "https://ai-calling-intelligence.onrender.com",
-            "*"  # Allow all origins for now - should be more restrictive in production
-        ]
+    # Local Model Paths
+    ROBERTA_MODEL: str = str(backend_dir / "app" / "models" / "roberta_finetuned" / "roberta_finetuned")
+    SENTIMENT_MODEL: str = str(backend_dir / "app" / "models" / "multilingual_sentiment_model")
+    VECTOR_MODEL: str = str(backend_dir / "app" / "models" / "all_MiniLM_L6_v2")
+    STT_LOCAL_MODEL: str = str(backend_dir / "app" / "models" / "s2t_small_librispeech")
+    LLAMA_MODEL: str = "meta-llama/Llama-2-8b-chat-hf"
+    
+    # Ollama Configuration
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3"
+    
+    # CORS Configuration
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
+    ]
+    
+    # Speech-to-Text Configuration
+    STT_API_URL: str = "https://api.openai.com/v1/audio/transcriptions"
+    STT_MODEL: str = "whisper-1"
     
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
@@ -75,12 +72,3 @@ class Settings(BaseSettings):
 
 # Create a global settings instance
 settings = Settings()
-
-# Validation function for Gemini API key
-def validate_gemini_key():
-    """Validate that Gemini API key is properly configured"""
-    if not settings.GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY environment variable is required but not set")
-    if not settings.GEMINI_API_KEY.startswith("AIza"):
-        raise ValueError("GEMINI_API_KEY must be a valid Google Gemini API key starting with 'AIza'")
-    return True

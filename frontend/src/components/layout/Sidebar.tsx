@@ -28,8 +28,8 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Calls', href: '/calls', icon: Phone },
-  { name: 'AI Analysis', href: '/analyze', icon: Brain },
-  { name: 'Model Test', href: '/model-test', icon: TestTube },
+  { name: 'Process Call', href: '/calls/process', icon: Brain },
+  { name: 'Model Test', href: '/models/test', icon: TestTube },
   { name: 'Action Items', href: '/action-items', icon: CheckSquare },
   { name: 'Sentiment Timeline', href: '/sentiment', icon: TrendingUp },
   { name: 'QBR', href: '/qbr', icon: FileText },

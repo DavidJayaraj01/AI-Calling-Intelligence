@@ -1,24 +1,4 @@
-.env
-**/.env
-**/.env.*
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-*.db
-*.log
-logs/
-node_modules/
-dist/
-build/
-.vscode/
-.DS_Store
-*.egg-info/
-*.egg
-*.bak
-*.swp
-uploads/# Logs
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -102,6 +82,16 @@ ai_call_intelligence.db
 *.pth
 .cache/
 transformers/
+
+# Pre-trained model directories
+backend/app/models/all_MiniLM_L6_v2/
+backend/app/models/multilingual_sentiment_model/
+backend/app/models/roberta_finetuned/
+backend/app/models/s2t_small_librispeech/
+*.safetensors
+*.h5
+*.onnx
+*.tflite
 
 # Environment variables (keep .env but exclude sensitive local ones)
 .env.local
