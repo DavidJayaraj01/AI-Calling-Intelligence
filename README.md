@@ -360,14 +360,23 @@ DEBUG=true
 PROJECT_NAME=AI Call Intelligence API
 VERSION=1.0.0
 
-# 🗄️ Database
-DATABASE_URL=sqlite:///./ai_call_intelligence.db  # Dev
-# DATABASE_URL=postgresql://user:pass@host:port/db  # Prod
+# 🗄️ Database (PostgreSQL - Production Ready)
+DATABASE_URL=postgresql://user:pass@host:port/db
+POSTGRES_USER=your_username
+POSTGRES_PASSWORD=your_password
+POSTGRES_DB=your_database
+POSTGRES_HOST=your_host
+POSTGRES_PORT=5432
 
-# 🤖 OpenAI Integration  
-OPENAI_API_KEY=sk-your-openai-api-key-here
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_WHISPER_MODEL=whisper-1
+# 🤖 Ollama Configuration (Local LLM)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3:8b
+
+# 📂 Local AI Model Paths (Auto-configured)
+ROBERTA_MODEL=app/models/roberta_finetuned
+SENTIMENT_MODEL=app/models/multilingual_sentiment_model
+VECTOR_MODEL=app/models/all_MiniLM_L6_v2
+STT_LOCAL_MODEL=app/models/s2t_small_librispeech
 
 # 🔒 Security
 SECRET_KEY=your-super-secret-key-change-this-in-production-2024
@@ -377,6 +386,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 # 📝 Logging
 LOG_LEVEL=INFO
 ```
+
+**Important Notes:**
+- ✅ **No API keys required!** All AI runs locally
+- ✅ Model paths are auto-configured relative to backend directory
+- ✅ Ollama must be running: `ollama serve`
+- ✅ Database URL can use provided Render PostgreSQL or your own
 
 #### **Frontend** (`/frontend/.env`):
 ```env
