@@ -248,32 +248,51 @@ npm run dev
 3. Upload an audio file or enter sample text
 4. Watch the AI analyze and extract insights! 🎉
 
-## ⚡ **OpenAI Integration & Cost Analysis**
+## ⚡ **Local AI Models & Zero Cost**
 
-This platform leverages **OpenAI's most advanced APIs** for enterprise-grade AI capabilities:
+This platform uses **100% local AI models** - no API keys, no usage costs, complete privacy!
 
 ### 🧠 **AI Models Used**
-- **🤖 GPT-4o-mini**: Cost-effective analysis model ($0.15 input / $0.60 output per 1M tokens)
-- **🎙️ Whisper API**: Industry-leading speech-to-text ($0.006 per minute)
-- **🔍 text-embedding-3-small**: Semantic search embeddings ($0.02 per 1M tokens)
-- **⚡ No Local Models**: Zero setup complexity, maximum reliability
+- **🎙️ Google Speech Recognition**: Free speech-to-text (no API key required)
+- **🤖 Ollama Llama3:8b**: Local language model for action items (~4.7GB, runs on your machine)
+- **😊 Multilingual Sentiment**: Local transformer model (521MB)
+- **🧠 RoBERTa Fine-tuned**: Pain point extraction (477MB)
+- **🔍 Sentence Transformers**: Semantic search (88MB)
+- **🎤 Speech-to-Text Backup**: Local Whisper-based model (114MB)
 
-### 💰 **Cost Breakdown** (Real Usage Data)
-| Feature | Usage | Cost per Call | Monthly (1000 calls) |
-|---------|-------|---------------|---------------------|
-| **Transcription** (5 min avg) | Whisper API | $0.03 | $30 |
-| **Analysis** (~5K tokens) | GPT-4o-mini | $0.003 | $3 |
-| **Embeddings** (~1K tokens) | text-embedding-3-small | $0.00002 | $0.02 |
-| **Total** | | **$0.033** | **~$33** |
+### 💰 **Cost Comparison**
 
-> 💡 **Cost Efficiency**: Less than **4 cents per call** for complete AI analysis!
+| Feature | This Solution (Local) | Cloud AI (OpenAI) | Savings |
+|---------|----------------------|-------------------|---------|
+| **Transcription** (5 min) | **FREE** | $0.03 | $30/month* |
+| **Analysis** (~5K tokens) | **FREE** | $0.003 | $3/month* |
+| **Embeddings** (~1K tokens) | **FREE** | $0.00002 | $0.02/month* |
+| **Action Items** (LLM) | **FREE** | $0.01 | $10/month* |
+| **Total per call** | **$0.00** | $0.04 | **100% savings** |
+| **Monthly (1000 calls)** | **$0.00** | $43.02 | **$516/year** |
 
-### 🏆 **Why OpenAI vs Local Models?**
-- ✅ **Zero Setup**: No model downloads, GPU requirements, or ML expertise
-- ✅ **Always Updated**: Latest models without manual updates
-- ✅ **Scalable**: Handles any volume without infrastructure concerns
-- ✅ **Reliable**: 99.9% uptime SLA with professional support
-- ✅ **Cost-Effective**: Pay only for what you use, no idle server costs
+_* Based on 1000 calls/month_
+
+### 🏆 **Why Local Models?**
+- ✅ **Zero Cost**: No per-call charges, no API billing
+- ✅ **100% Private**: Your data never leaves your server
+- ✅ **No Rate Limits**: Process unlimited calls
+- ✅ **Offline Capable**: Works without internet (after initial setup)
+- ✅ **Customizable**: Fine-tune models for your specific use case
+- ✅ **No Vendor Lock-in**: Complete control over your infrastructure
+
+### 🔒 **Privacy First**
+- All AI processing happens locally on your server
+- No data sent to third-party APIs
+- Full GDPR and data privacy compliance
+- Perfect for sensitive business conversations
+
+### ⚙️ **System Requirements**
+- **RAM**: 8GB minimum (16GB recommended for optimal performance)
+- **Storage**: 10GB free space (for models and processing)
+- **CPU**: Modern multi-core processor (Intel i5/AMD Ryzen 5 or better)
+- **GPU**: Optional but recommended for faster processing
+- **Internet**: Required only for initial model download
 
 ## 🔧 **Development Guide**
 
